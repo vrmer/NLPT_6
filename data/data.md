@@ -1,0 +1,1 @@
+This folder contains the parc30-conll and polnear-conll folders.
