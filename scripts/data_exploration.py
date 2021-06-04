@@ -1,7 +1,8 @@
 import glob
+import pickle
 import pandas as pd
 
-from collections import Counter
+from collections import Counter, defaultdict
 from tqdm import tqdm
 
 import matplotlib.pyplot as plt
@@ -146,31 +147,55 @@ non_test_files = [
 ]
 
 # Looping through the files inside all folders that are not part of the test set
-with tqdm(total=len(non_test_files), desc='Looping through articles: ') as pbar:
+# with tqdm(total=len(non_test_files), desc='Looping through articles: ') as pbar:
+#
+#     for file_path in non_test_files:
+#         # print(file_path)
+#         cue_examples = extract_examples(file_path,
+#                                         target_label='cues')
+#         source_examples = extract_examples(file_path,
+#                                            target_label='sources')
+#
+#         for cue, source in zip(cue_examples, source_examples):
+#             all_cues.append(cue)
+#             all_sources.append(source)
+#
+#         pbar.update(1)
 
-    for file_path in non_test_files:
-        # print(file_path)
-        cue_examples = extract_examples(file_path,
-                                        target_label='cues')
-        source_examples = extract_examples(file_path,
-                                           target_label='sources')
 
-        for cue, source in zip(cue_examples, source_examples):
-            all_cues.append(cue)
-            all_sources.append(source)
+# counted_cues = Counter(all_cues)
+# counted_sources = Counter(all_sources)
+#
+# with open('counted_cues.pkl', 'wb') as outfile:
+#     pickle.dump(counted_cues, outfile)
+#
+# with open('counted_sources.pkl', 'wb') as outfile:
+#     pickle.dump(counted_sources, outfile)
 
-        pbar.update(1)
+with open('counted_cues.pkl', 'rb') as infile:
+    counted_cues = pickle.load(infile)
 
+with open('counted_sources.pkl', 'rb') as infile:
+    counted_sources = pickle.load(infile)
 
-counted_cues = Counter(all_cues)
-counted_sources = Counter(all_sources)
+cue_dict = defaultdict(int)
+source_dict = defaultdict(int)
 
-cues_df = pd.DataFrame(counted_cues, index=counted_cues.keys())
+for cue, freq in counted_cues.items():
+    cue_dict[freq] += 1
+
+for source, freq in counted_sources.items():
+    source_dict[freq] += 1
+
+print(sorted(cue_dict.items(), key=lambda x: x[1], reverse=True))
+print(source_dict)
+
+# cues_df = pd.DataFrame(counted_cues, index=counted_cues.keys())
 # cues_df.drop(cues_df.columns[1:], inplace=True)
 
-cues_df.plot(kind='bar')
+# cues_df.plot(kind='bar')
 
-plt.show()
+# plt.show()
 
 # with open('../data/output/data_exploration/all_cues.txt', 'w', encoding='utf8') as outfile:
 #     for cue in sorted(all_cues):
