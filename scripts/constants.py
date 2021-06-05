@@ -15,7 +15,7 @@ headers = [
 conll_kwargs = {
     'delimiter': '\t',
     'encoding': 'utf8',
-    'quotechar': '|',
+    'quoting': 3,
     'names': headers
 }
 

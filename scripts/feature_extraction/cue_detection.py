@@ -21,10 +21,6 @@ from nltk.corpus import verbnet
 
 import scripts.constants as constants
 
-from sklearn.feature_extraction import DictVectorizer
-from sklearn.preprocessing import LabelEncoder
-from sklearn.ensemble import RandomForestClassifier
-
 quotes = {'"', '\'', '``', '`', '\'\''}
 
 
@@ -114,62 +110,62 @@ def feature_label_extraction(filepath):
 #
 # paths = [path1, path2]
 
-all_files = glob.glob('../../data/**/**/**')
-
-train_files = [
-    filename for filename in all_files
-    if 'train' in filename
-]
-
-dev_files = [
-    filename for filename in all_files
-    if 'dev' in filename
-]
+# all_files = glob.glob('../../data/**/**/**')
+#
+# train_files = [
+#     filename for filename in all_files
+#     if 'train' in filename
+# ]
+#
+# dev_files = [
+#     filename for filename in all_files
+#     if 'dev' in filename
+# ]
 
 # print(train_files)
 
-train_feature_list = []
-train_label_list = []
-dev_feature_list = []
-dev_label_list = []
-
-with tqdm(total=len(train_files), desc='Training files: ') as pbar:
-
-    for path in train_files:
-        # print(path)
-        features, labels = feature_label_extraction(path)
-
-        for feature, label in zip(features, labels):
-            train_feature_list.append(feature)
-            train_label_list.append(label)
-
-        pbar.update(1)
-
-print()
-
-with tqdm(total=len(dev_files), desc='Development files: ') as pbar:
-
-    for path in dev_files:
-        print(path)
-        features, labels = feature_label_extraction(path)
-
-        for feature, label in zip(features, labels):
-            dev_feature_list.append(feature)
-            dev_label_list.append(label)
-
-        pbar.update(1)
-
-with open('../../data/cue_detection/train_features.pkl', 'wb') as outfile:
-    pickle.dump(train_feature_list, outfile)
-
-with open('../../data/cue_detection/train_labels.pkl', 'wb') as outfile:
-    pickle.dump(train_label_list, outfile)
-
-with open('../../data/cue_detection/dev_features.pkl', 'wb') as outfile:
-    pickle.dump(dev_feature_list, outfile)
-
-with open('../../data/cue_detection/dev_labels.pkl', 'wb') as outfile:
-    pickle.dump(dev_label_list, outfile)
+# train_feature_list = []
+# train_label_list = []
+# dev_feature_list = []
+# dev_label_list = []
+#
+# with tqdm(total=len(train_files), desc='Training files: ') as pbar:
+#
+#     for path in train_files:
+#         # print(path)
+#         features, labels = feature_label_extraction(path)
+#
+#         for feature, label in zip(features, labels):
+#             train_feature_list.append(feature)
+#             train_label_list.append(label)
+#
+#         pbar.update(1)
+#
+# print()
+#
+# with tqdm(total=len(dev_files), desc='Development files: ') as pbar:
+#
+#     for path in dev_files:
+#         print(path)
+#         features, labels = feature_label_extraction(path)
+#
+#         for feature, label in zip(features, labels):
+#             dev_feature_list.append(feature)
+#             dev_label_list.append(label)
+#
+#         pbar.update(1)
+#
+# with open('../../data/cue_detection/train_features.pkl', 'wb') as outfile:
+#     pickle.dump(train_feature_list, outfile)
+#
+# with open('../../data/cue_detection/train_labels.pkl', 'wb') as outfile:
+#     pickle.dump(train_label_list, outfile)
+#
+# with open('../../data/cue_detection/dev_features.pkl', 'wb') as outfile:
+#     pickle.dump(dev_feature_list, outfile)
+#
+# with open('../../data/cue_detection/dev_labels.pkl', 'wb') as outfile:
+#     pickle.dump(dev_label_list, outfile)
 
 # path = r'D:\VU Amsterdam\NLPT_6\data\parc30-conll\dev-conll-foreval\wsj_2400.xml.conll.features.foreval'
 # # path = r'D:\VU Amsterdam\NLPT_6\data\parc30-conll\train-conll-foreval\wsj_0004.xml.conll.features.foreval'
@@ -181,13 +177,3 @@ with open('../../data/cue_detection/dev_labels.pkl', 'wb') as outfile:
 #
 # for word, item in zip(df.token, df.dep_head):
 #     print(word, item)
-
-# vectorizer = DictVectorizer(sparse=False)
-# le = LabelEncoder()
-#
-# transformed_features = vectorizer.fit_transform(features)
-# transformed_labels = le.fit_transform(labels)
-#
-# forest = RandomForestClassifier()
-#
-# forest.fit(transformed_features, transformed_labels)
