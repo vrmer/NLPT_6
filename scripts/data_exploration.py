@@ -101,47 +101,45 @@ def extract_examples(file_path,
 
     return examples
 
-
-all_cues = []
-all_sources = []
-
-all_cue_pos = set()
-all_cue_dep_label = set()
-
+# all_cues = []
+# all_sources = []
+#
+# all_cue_pos = set()
+# all_cue_dep_label = set()
+#
 all_files = glob.glob('../data/**/**/**')
-
 non_test_files = [
     filename for filename in all_files
     if 'test' not in filename
 ]
+#
+# # Looping through the files inside all folders that are not part of the test set
+# with tqdm(total=len(non_test_files), desc='Looping through articles: ') as pbar:
+#
+#     for file_path in non_test_files:
+#         print(file_path)
+#         cue_examples = extract_examples(file_path,
+#                                         target_label='cues',
+#                                         collect='pos')
+#         source_examples = extract_examples(file_path,
+#                                            target_label='sources',
+#                                            collect='dep_label')
+#
+#         for cue, source in zip(cue_examples, source_examples):
+#             all_cue_pos.add(cue)
+#             all_cue_dep_label.add(source)
+#
+#         pbar.update(1)
 
-# Looping through the files inside all folders that are not part of the test set
-with tqdm(total=len(non_test_files), desc='Looping through articles: ') as pbar:
-
-    for file_path in non_test_files:
-        # print(file_path)
-        cue_examples = extract_examples(file_path,
-                                        target_label='cues',
-                                        collect='pos')
-        source_examples = extract_examples(file_path,
-                                           target_label='sources',
-                                           collect='dep_label')
-
-        for cue, source in zip(cue_examples, source_examples):
-            all_cue_pos.add(cue)
-            all_cue_dep_label.add(source)
-
-        pbar.update(1)
-
-with open('../data/output/data_exploration/cue_pos_set.txt', 'w') as outfile:
-    for pos in sorted(all_cue_pos):
-        outfile.write(pos)
-        outfile.write('\n')
-
-with open('../data/output/data_exploration/cue_dep_label_set.txt', 'w') as outfile:
-    for dl in sorted(all_cue_dep_label):
-        outfile.write(dl)
-        outfile.write('\n')
+# with open('../data/output/data_exploration/cue_pos_set.txt', 'w') as outfile:
+#     for pos in sorted(all_cue_pos):
+#         outfile.write(pos)
+#         outfile.write('\n')
+#
+# with open('../data/output/data_exploration/cue_dep_label_set.txt', 'w') as outfile:
+#     for dl in sorted(all_cue_dep_label):
+#         outfile.write(dl)
+#         outfile.write('\n')
 
 
 # counted_cues = Counter(all_cues)
