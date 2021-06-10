@@ -8,8 +8,7 @@ import re
 # polnear folders. I did not double-check whether such a folder exists in this
 # repository, but without such a directory this script will not work properly.
 
-# Its output is written to a tsv file in the same directory the script is in,
-# which may not be ideal. All (two) references to directories can be found by
+# All (two) references to directories can be found by
 # searching for TODOs.
 
 # Start out with collecting all files into a single column
@@ -17,9 +16,13 @@ file_list = []
 
 # TODO: make sure this points to a directory containing only the parc and/or
 #       polnear folders
-for subdir, dirs, files in os.walk('..\\data\\'):
-    if len(files) > 0:
+# for subdir, dirs, files in os.walk('..\\data\\'):
+for subdir, dirs, files in os.walk('../../data_ar'): # DRI: this is the filepath to the folder with the data in my local machine
+    if len(files) > 0 and files[0] != '.DS_Store': # DRI: second condition is for some reason necessary for the script to run in my machine
         file_list += [os.path.join(subdir, file) for file in files]
+        print(subdir)
+        print(dirs)
+        print(files)
 
 df = pd.DataFrame({'file': file_list}, columns=['file'])
 # Extract further information from the file path
@@ -161,4 +164,4 @@ df = add_info(df, sent_columns, collect_sent_info)
 # # df = add_info(df, target_columns, collect_target_info)
 
 # TODO: have this point to a proper directory as well
-df.to_csv('file_level_data.tsv', sep='\t', index=False, decimal=',')
+df.to_csv('../data/output/file_level_data.tsv', sep='\t', index=False, decimal=',')
