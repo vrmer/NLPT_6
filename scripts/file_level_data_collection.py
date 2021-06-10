@@ -42,6 +42,9 @@ def collect_sent_info(file, sep='\t'):
     :return chains_spanning_sents: number of chains in the file that cross
                                    sentence boundaries
     :return sents_w_multiple_chains: number of sentences with multiple chains
+    :return cue_count: the number of tokens annotated as cue in the file
+    :return con_count: the number of tokens annotated as content
+    :return sou_count: the number of tokens annotated as source
     '''
     with open(file, encoding='utf8') as f:
         sent_count = 0
@@ -54,6 +57,10 @@ def collect_sent_info(file, sep='\t'):
         chains_spanning_sents = 0
         sents_w_multiple_chains = 0
 
+        cue_count = 0
+        con_count = 0
+        sou_count = 0
+
         lines = f.readlines()
         # empty lines are treated as sentence boundaries, because of this, a
         # final line needs to be added in order for the final sentence to be
@@ -62,9 +69,17 @@ def collect_sent_info(file, sep='\t'):
 
         for line in lines:
             line = line.rstrip().split(sep)
+            # check the final column for cues, contents, and sources, and count
+            # them accordingly
+            if 'CUE' in line[-1]:
+                cue_count += 1
+            if 'CON' in line[-1]:
+                con_count += 1
+            if 'SOU' in line[-1]:
+                sou_count += 1
             # chains are contained in the last column, and have a unique number
-            # captured by '\d+'
-            chains = {i for i in re.findall('\d+', line[-1])}
+            # captured by the regex below
+            chains = {i for i in re.findall('[A-Z]-[0-9][0-9]*', line[-1])}
             for chain in chains:
                 # if this is the first instance of this chain in this sentence…
                 if chain not in sent_chains:
@@ -88,8 +103,8 @@ def collect_sent_info(file, sep='\t'):
 
     # data is returned as a list so that it can be transposed into a pandas-
     # appropriate list of lists more easily later
-    return [sent_count, tok_count, len(all_chains), 
-            chains_spanning_sents, sents_w_multiple_chains]
+    return [sent_count, tok_count, len(all_chains), chains_spanning_sents,
+            sents_w_multiple_chains, cue_count, con_count, sou_count]
 
 
 # These two functions collect target-specific information, but it might not be
@@ -158,7 +173,8 @@ def add_info(df, columns, function):
 # # target_columns = [a.lower() + b for a, b in list(product(query_list, column_suffixes))]
 
 sent_columns = ['sent_count', 'tok_count', 'chain_count',
-                'chains_spanning_sents', 'sents_w_multiple_chains'] 
+                'chains_spanning_sents', 'sents_w_multiple_chains',
+                'cue_count', 'con_count', 'sou_count']
 
 df = add_info(df, sent_columns, collect_sent_info)
 # # df = add_info(df, target_columns, collect_target_info)
