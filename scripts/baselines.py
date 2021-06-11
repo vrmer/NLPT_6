@@ -79,8 +79,8 @@ def extract_gold_label(cell):
     :return: gold labels
     '''
 
-    cell = re.search(r'[BI]-[A-Z]*', str(cell))
-    if cell is None: # if cell only contains underscores, token does not belong to a source, a cue or a content
+    cell = re.findall(r'[BI]-[A-Z]*', str(cell))[0]
+    if len(cell) == 0: # if cell only contains underscores, token does not belong to a source, a cue or a content
         cell = '_'
     return cell
 
@@ -88,12 +88,11 @@ def generate_baseline():
     pass
 
 
-
 df = read_in_files('../../data_ar', 'parc')
 df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
 df.to_csv('../data/full_train_dataset_parc.tsv',sep='\t')
-df = pd.read_csv('../data/full_train_dataset_parc.tsv',sep='\t')
-getter = SentenceGetter(df)
-sentences = getter.sentences
+# df = pd.read_csv('../data/full_train_dataset_parc.tsv',sep='\t')
+# getter = SentenceGetter(df)
+# sentences = getter.sentences
 
 
