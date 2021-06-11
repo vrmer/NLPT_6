@@ -25,7 +25,7 @@ def simplify_target(s, include_bio=False):
     return output if len(output) > 0 else 'O'
 
 
-file_location = 'annotation_level_data.tsv'
+file_location = ''../data/output/annotation_level_data.tsv'
 
 if not os.path.exists(file_location):
     file_list = []
