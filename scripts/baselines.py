@@ -79,7 +79,7 @@ def extract_gold_label(cell):
     :return: gold labels
     '''
 
-    cell = re.search(r'[BI]-[A-Z]*', cell)
+    cell = re.search(r'[BI]-[A-Z]*', str(cell))
     if cell is None: # if cell only contains underscores, token does not belong to a source, a cue or a content
         cell = '_'
     return cell
