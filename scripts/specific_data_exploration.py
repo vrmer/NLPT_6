@@ -3,12 +3,8 @@ import os
 import re
 from collections import Counter, defaultdict
 
-# TODO: re-evaluate whether this is even necessary
-fdf_location = 'file_level_data.tsv'  # location of the file-level data
-adf_location = 'annotation_level_data.tsv'  # and of the annotation-level data
-
-fdf = pd.read_csv(fdf_location, sep='\t')
-adf = pd.read_csv(adf_location, sep='\t')
+fdf = pd.read_csv('../data/output/annotation_level_data.tsv', sep='\t')
+adf = pd.read_csv('../data/output/annotation_level_data.tsv', sep='\t')
 
 fdf_polnear = fdf[fdf.source == 'PoLNeAR']
 adf_polnear = adf[adf.source == 'PoLNeAR']
