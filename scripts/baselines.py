@@ -1,5 +1,5 @@
+import re
 import pandas as pd
-from itertools import chain
 import os
 
 def generate_train_filepaths(path_to_directory, corpus):
@@ -53,13 +53,14 @@ class SentenceGetter(object):
         self.n_sent = 1
         self.data = data
         self.empty = False
-        agg_func = lambda s: [(t, s_n, l, p, d, h, a) for t, s_n, l, p, d, h, a in zip(s["token"].values.tolist(),
+        agg_func = lambda s: [(t, s_n, l, p, d, h, a, g) for t, s_n, l, p, d, h, a, g in zip(s["token"].values.tolist(),
                                                                      s["sent_n"].values.tolist(),
                                                                      s["lemma"].values.tolist(),
                                                                      s["pos"].values.tolist(),
                                                                      s["dep_label"].values.tolist(),
                                                                      s["dep_head"].values.tolist(),
-                                                                     s["att"]
+                                                                     s["att"].values.tolist(),
+                                                                     s["gold"].values.tolist()
                                                                      )]
         self.grouped = self.data.groupby("sent_n").apply(agg_func)
         self.sentences = [s for s in self.grouped]
@@ -72,15 +73,27 @@ class SentenceGetter(object):
         except:
             return None
 
+def extract_gold_label(cell):
+    '''
+    Strip underscores and info attached to gold label (e.g. -PD-0).
+    :return: gold labels
+    '''
 
-def generate_base_cue():
+    cell = re.search(r'[BI]-[A-Z]*', cell)
+    if cell is None: # if cell only contains underscores, token does not belong to a source, a cue or a content
+        cell = '_'
+    return cell
+
+def generate_baseline():
     pass
 
-def generate_base_cnt_src():
-    pass
 
 
 df = read_in_files('../../data_ar', 'parc')
+df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
 df.to_csv('../data/full_train_dataset_parc.tsv',sep='\t')
-getter = SentenceGetter(df)
-sentences = getter.sentences
+# df = pd.read_csv('../data/full_train_dataset_parc.tsv',sep='\t')
+# getter = SentenceGetter(df)
+# sentences = getter.sentences
+
+
