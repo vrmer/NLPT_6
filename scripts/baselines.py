@@ -92,8 +92,8 @@ def generate_baseline():
 df = read_in_files('../../data_ar', 'parc')
 df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
 df.to_csv('../data/full_train_dataset_parc.tsv',sep='\t')
-# df = pd.read_csv('../data/full_train_dataset_parc.tsv',sep='\t')
-# getter = SentenceGetter(df)
-# sentences = getter.sentences
+df = pd.read_csv('../data/full_train_dataset_parc.tsv',sep='\t')
+getter = SentenceGetter(df)
+sentences = getter.sentences
 
 
