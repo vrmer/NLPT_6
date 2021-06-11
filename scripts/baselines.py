@@ -78,9 +78,10 @@ def extract_gold_label(cell):
     Strip underscores and info attached to gold label (e.g. -PD-0).
     :return: gold labels
     '''
-
-    cell = re.findall(r'[BI]-[A-Z]*', str(cell))[0]
-    if len(cell) == 0: # if cell only contains underscores, token does not belong to a source, a cue or a content
+    match = re.search(r'[BI]-[A-Z]*', str(cell))
+    if match:
+        cell = match.group(0)
+    else: # if cell only contains underscores, token does not belong to a source, a cue or a content
         cell = '_'
     return cell
 
