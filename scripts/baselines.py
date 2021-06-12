@@ -46,6 +46,18 @@ def read_in_files (path_to_directory, corpus):
 
     return full_df
 
+def extract_gold_label(cell):
+    '''
+    Strip underscores and info attached to gold label (e.g. -PD-0).
+    :return: gold labels
+    '''
+    match = re.search(r'[BI]-[A-Z]*', str(cell))
+    if match:
+        cell = match.group(0)
+    else: # if cell only contains underscores, token does not belong to a source, a cue or a content
+        cell = '_'
+    return cell
+
 # Separate tokens into sentences
 class SentenceGetter(object):
 
@@ -53,7 +65,8 @@ class SentenceGetter(object):
         self.n_sent = 1
         self.data = data
         self.empty = False
-        agg_func = lambda s: [(t, s_n, l, p, d, h, a, g) for t, s_n, l, p, d, h, a, g in zip(s["token"].values.tolist(),
+        agg_func = lambda s: [(t, s_n, l, p, d, h, a, g) for t, s_n, l, p, d, h, a, g in zip(
+                                                                     s["token"].values.tolist(),
                                                                      s["sent_n"].values.tolist(),
                                                                      s["lemma"].values.tolist(),
                                                                      s["pos"].values.tolist(),
@@ -73,27 +86,28 @@ class SentenceGetter(object):
         except:
             return None
 
-def extract_gold_label(cell):
-    '''
-    Strip underscores and info attached to gold label (e.g. -PD-0).
-    :return: gold labels
-    '''
-    match = re.search(r'[BI]-[A-Z]*', str(cell))
-    if match:
-        cell = match.group(0)
-    else: # if cell only contains underscores, token does not belong to a source, a cue or a content
-        cell = '_'
-    return cell
+def generate_baseline(sentences, cue_gzt):
 
-def generate_baseline():
-    pass
-
-
-df = read_in_files('../../data_ar', 'parc')
-df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
-df.to_csv('../data/full_train_dataset_parc.tsv',sep='\t')
-# df = pd.read_csv('../data/full_train_dataset_parc.tsv',sep='\t')
-# getter = SentenceGetter(df)
-# sentences = getter.sentences
+    predictions = []
+    for s in sentences:
+        pred_dict = dict()
+        # try to find cues by comparing each token lemma with the cue gazetteer
+        for token in s:
+            lemma = token[2]
+            if lemma in cue_gzt:
+                idx = token[1]
+                pred_dict[idx] = 'I-CUE'
+                pass
+                predictions.append(pred_dict)
+    return predictions
 
 
+# df = read_in_files('../../data_ar', 'parc')
+# df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
+# df.to_csv('../data/full_train_dataset_parc.tsv',sep='\t')
+df = pd.read_csv('../data/full_train_dataset_parc.tsv',sep='\t')
+getter = SentenceGetter(df)
+sentences = getter.sentences
+gold = [[token[-1] for token in sentence] for sentence in getter.sentences]
+cue_gzt = pd.read_csv('../data/cue_list.csv')["cue"].tolist()
+pred = generate_baseline(sentences, cue_gzt)
