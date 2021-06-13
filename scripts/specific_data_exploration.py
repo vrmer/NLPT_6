@@ -3,7 +3,7 @@ import os
 import re
 from collections import Counter, defaultdict
 
-fdf = pd.read_csv('../data/output/annotation_level_data.tsv', sep='\t')
+fdf = pd.read_csv('../data/output/file_level_data.tsv', sep='\t')
 adf = pd.read_csv('../data/output/annotation_level_data.tsv', sep='\t')
 
 fdf_polnear = fdf[fdf.source == 'PoLNeAR']
