@@ -69,7 +69,7 @@ class SentenceGetter(object):
         self.empty = False
         agg_func = lambda s: [(t, s_n, l, p, d, h, a, g) for t, s_n, l, p, d, h, a, g in zip(
                                                                      s["token"].values.tolist(),
-                                                                     s["sent_n"].values.tolist(),
+                                                                     s["sent_idx"].values.tolist(),
                                                                      s["lemma"].values.tolist(),
                                                                      s["pos"].values.tolist(),
                                                                      s["dep_label"].values.tolist(),
@@ -112,20 +112,21 @@ def generate_baseline(sentences, cue_gzt):
 
     predictions = []
     for s in sentences:
+
+        print(s)
         pred_dict = dict.fromkeys(range(1,len(s)))
-        print(range(len(s)))
 
         # try to find cues by comparing each token lemma with the cue gazetteer
         for token in s:
 
             lemma = token[2]
-            if lemma in cue_gzt:
-                idx = token[1]
+            idx = token[1]
+            if lemma in cue_gzt and "CUE" not in pred_dict.values():
                 pred_dict[idx] = 'CUE'  # if they match, tag token as cue
                 # create networkx graph to more easily access dep structure
                 graph = get_graph(s)
-                print(graph)
-                break
+            else:
+                pred_dict[idx] = '_'
                 # # loop through tokens again to find dependents
                 # for t in s:
                 #
@@ -177,9 +178,6 @@ df = pd.read_csv('../data/full_train_dataset_parc.tsv',sep='\t')
 # create sentence instances
 getter = SentenceGetter(df)
 sentences = getter.sentences
-
-for t in sentences[0]:
-    print(t)
 
 # collect gold labels
 gold = [[token[-1] for token in sentence] for sentence in getter.sentences]
