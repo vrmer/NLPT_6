@@ -113,7 +113,7 @@ def generate_baseline(sentences, cue_gzt):
     predictions = []
     c = 0
 
-    for s in sentences:
+    for s in sentences[0:15]:
         pred_dict = dict()
 
         # try to find cues by comparing each token lemma with the cue gazetteer
@@ -159,14 +159,28 @@ def generate_baseline(sentences, cue_gzt):
                 if idx not in pred_dict.keys():
                     pred_dict[idx] = '_'
 
-            predictions.append(pred_dict)
+        # Add BIO-tags
+        tags = list(pred_dict.values())
+        pred = list()
+        counter = 0
+        for tag in tags:
+            if tag != '_':
+                if tag not in tags[:counter]:
+                    pred.append(f'B-{tag}')
+                else:
+                    pred.append(f'I-{tag}')
+            else:
+                pred.append('_')
+            counter += 1
+
+        predictions.append(pred)
+
         print(s)
         print([word[0] for word in s])
         print(pred_dict)
+        print(pred)
         print()
-        c += 1
-        if c == 15:
-            break
+
     return predictions
 
 
