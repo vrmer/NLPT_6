@@ -104,62 +104,69 @@ def get_graph (sentence):
         # if dep_label != 'ROOT':
         #     edges.append((head_index, dep_index))
         edges.append((head_index, dep_index))
-    graph = nx.Graph(edges)
+    graph = nx.DiGraph(edges)
 
     return graph
 
 def generate_baseline(sentences, cue_gzt):
 
     predictions = []
-    for s in sentences:
+    c = 0
 
-        print(s)
-        pred_dict = dict.fromkeys(range(1,len(s)))
+    for s in sentences:
+        pred_dict = dict()
 
         # try to find cues by comparing each token lemma with the cue gazetteer
         for token in s:
 
             lemma = token[2]
             idx = token[1]
+
             if lemma in cue_gzt and "CUE" not in pred_dict.values():
+
                 pred_dict[idx] = 'CUE'  # if they match, tag token as cue
                 # create networkx graph to more easily access dep structure
                 graph = get_graph(s)
-            else:
-                pred_dict[idx] = '_'
-                # # loop through tokens again to find dependents
-                # for t in s:
-                #
-                #     # if token is dependent and dep label is advmod, neg, aux or mwe, then it is part of the CUE span
-                #     if t[-3] == idx and t[-4] in ["advmod","neg","aux","mwe"]:
-                #         pred_dict[t[1]] = 'CUE'
-                #
-                #     # if token is dependent and dep label is its subject, then it is its SOURCE.
-                #     elif t[-3] == idx and t[-4] == "nsubj":
-                #         pred_dict[t[1]] = 'SOURCE'
-                #
-                #         # its direct and indirect dependents compose the source span.
-                #         for tk in s: # check for first-order dependents
-                #             if tk[-3] == t[1]:
-                #                 pred_dict[tk[1]] = 'SOURCE'
-                #                 for tok in s: # check for second-order dependents
-                #                     if tok[-3] == tk[1]:
-                #                         pred_dict[tok[1]] = 'SOURCE'
-                #
-                #     # if token is dependent and dep label is its clausal complement, then it is its CONTENT.
-                #     elif t[-3] == idx and t[-4] == "ccomp":
-                #         pred_dict[t[1]] = 'CONTENT'
-                #         # its direct and indirect dependents compose the content span
-                #         for tk in s: # check for first-order dependents
-                #             if tk[-3] == t[1]:
-                #                 pred_dict[tk[1]] = 'CONTENT'
-                #                 for tok in s: # check for second-order dependents
-                #                     if tok[-3] == tk[1]:
-                #                         pred_dict[tok[1]] = 'CONTENT'
 
-                predictions.append(pred_dict)
-        print(predictions)
-        break
+                # loop through tokens again to find dependents
+                for t in s:
+
+                    # if token is dependent and dep label is advmod, neg, aux or mwe, then it is part of the CUE span
+                    head = t[-3]
+                    dep_label = t[-4]
+                    t_idx = t[1]
+                    if head == idx and dep_label in ["advmod","neg","aux","mwe"]:
+                        pred_dict[t_idx] = 'CUE'
+
+                    # if token is dependent and dep label is its subject, then it is its SOURCE.
+                    elif head == idx and dep_label == "nsubj":
+                        pred_dict[t_idx] = 'SOURCE'
+                        # its direct and indirect dependents compose the source span.
+                        dependents = nx.descendants(graph,t_idx)
+                        print(dependents)
+                        for dep in dependents:
+                            pred_dict[dep] = 'SOURCE'
+
+                    # if token is dependent and dep label is its clausal complement, then it is its CONTENT.
+                    elif head == idx and dep_label == "ccomp":
+                        pred_dict[t_idx] = 'CONTENT'
+                        # its direct and indirect dependents compose the content span
+                        dependents = nx.descendants(graph, t_idx)
+                        for dep in dependents:
+                            pred_dict[dep] = 'CONTENT'
+
+            else:
+                if idx not in pred_dict.keys():
+                    pred_dict[idx] = '_'
+
+            predictions.append(pred_dict)
+        print(s)
+        print([word[0] for word in s])
+        print(pred_dict)
+        print()
+        c += 1
+        if c == 15:
+            break
     return predictions
 
 
