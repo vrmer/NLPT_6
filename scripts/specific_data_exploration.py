@@ -75,4 +75,39 @@ def most_freq_item_in_chain(fdf, adf, main_col, main_val, target_col, chain,
         print(count)
 
 
-most_freq_item_in_chain(fdf_polnear, adf_polnear, -3, 'root', -3, 'CUE')
+# How many sentences does each chain span?
+def count_sents_per_chain(fdf):
+    all_counts = []
+    for _, row in fdf.iterrows():
+        with open(row.file, encoding='utf8') as f:
+            file_counts = defaultdict(int)
+            chains_in_sent = set()
+            lines = f.readlines()
+            lines.append('')
+            for line in lines:
+                line = line.rstrip().split('\t')
+                if len(line) > 1:
+                    chains = chains = {i for i in re.findall('[0-9][0-9]*', line[-1])}
+                    for chain in chains:
+                        if chain == '':
+                            continue
+                        if chain not in chains_in_sent:
+                            chains_in_sent.add(chain)
+                            file_counts[chain] += 1
+                else:
+                    chains_in_sent = set()
+            all_counts += [i for i in file_counts.values()]
+    counts_counter = Counter(all_counts)
+    counts_counter = [(i[0], i[1] / len(all_counts)) for i in counts_counter.most_common()]
+    for i in counts_counter:
+        print(i)
+
+
+print('Most common dep labels of CUEs that co-occur with a CUE that has the\
+    lemma ‘say’ in the same chain:')
+most_freq_item_in_chain(fdf_parc, adf_parc, -5, 'say', -3, 'CUE')
+
+print('\n')
+
+print('Amount of sentences spanned by each chain:')
+count_sents_per_chain(fdf_polnear)
