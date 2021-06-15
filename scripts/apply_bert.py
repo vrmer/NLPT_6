@@ -25,11 +25,15 @@ def embedding_extraction(path):
     # Merging the tokens into sentences
     sentences = df.groupby(1)[5]
     sents = []
+    sent_token_list = []
+    segmented_numbers = []
+
     for idx, sentence in sentences:
+        sent_token_list.append(sentence.values)
         sent = ' '.join(sentence.values)
-        # print(idx)
-        # print(sent)
         sents.append(sent)
+
+    print(sent_token_list)
 
     # load DistilBERT model
     model_class, tokenizer_class, pretrained_weights = (
@@ -41,6 +45,16 @@ def embedding_extraction(path):
     # Load pretrained model/tokenizer
     tokenizer = tokenizer_class.from_pretrained(pretrained_weights)
     model = model_class.from_pretrained(pretrained_weights)
+
+    for sent in sent_token_list:
+        sent_numbers = []
+        for token in sent:
+            sent_numbers.append(len(tokenizer.tokenize(token)))
+        segmented_numbers.append(sent_numbers)
+
+    print(segmented_numbers)
+    for seg in segmented_numbers:
+        print(len(seg))
 
     # Tokenize sentences
     tokenized = []
@@ -73,58 +87,102 @@ def embedding_extraction(path):
     # first and last tokens are [CLS] and [SEP]
     # multiple [PAD] tokens might appear after [SEP]
     # one token has 768 dimensions of embeddings
-    first_sentence_encoded = last_hidden_states[0][0, :, :]
-    first_sentence_decoded = tokenizer.convert_ids_to_tokens(padded[0])
+    sentences_encoded = []
+    sentences_decoded = []
+
+    for i in range(len(sents)):
+        # sentence_encoded = last_hidden_states[0][i, :, :]
+        sentence_encoded = last_hidden_states[0][i, :, :]
+        sentence_decoded = tokenizer.convert_ids_to_tokens(padded[i])
+
+        sentences_encoded.append(sentence_encoded)
+        sentences_decoded.append(sentence_decoded)
+
+    print(sentences_decoded)
 
     # Create an alignment list where important tokens are marked with CLS, TOKEN, or PART, rest is marked as JUNK
     alignment_list = []
 
-    for dec in first_sentence_decoded:
-        if dec == '[CLS]':
-            alignment_list.append('CLS')
-        elif dec.startswith('##'):
-            alignment_list.append('PART')
-        elif dec not in ['[SEP]', '[PAD]']:
-            alignment_list.append('TOKEN')
-        else:
-            alignment_list.append('JUNK')
+    for sentence in sentences_decoded:
+
+        candidate_list = []
+
+        for dec in sentence:
+
+            if dec == '[CLS]':
+                candidate_list.append('CLS')
+            elif dec.startswith('##'):
+                candidate_list.append('PART')
+            elif dec not in ['[SEP]', '[PAD]']:
+                candidate_list.append('TOKEN')
+            else:
+                candidate_list.append('JUNK')
+
+        alignment_list.append(candidate_list)
 
     # Create sentence representation in output list for each token, while gathering CLSs in their own list
-    output = []
+    output_encodings = []
     clss = []
 
-    token_reassembly = []
+    for enc_sent, dec_sent, als in zip(sentences_encoded, sentences_decoded, alignment_list):
 
-    for idx, (enc, dec, al) in enumerate(zip(first_sentence_encoded, first_sentence_decoded, alignment_list)):
-        # Collect CLSs
-        if al == 'CLS':
-            clss.append(enc)
+        sentence_tokens = []
+        token_reassembly = []
 
-        # Exclude 'JUNK'
-        elif al != 'JUNK':
+        for idx, (enc, dec, al) in enumerate(zip(enc_sent, dec_sent, als)):
 
-            if al == 'TOKEN':
+            # Collect CLSs
+            if al == 'CLS':
+                clss.append(enc)
 
-                # Average the subword tokens in token_reassembly if it exists
-                if token_reassembly:
-                    new_enc = torch.mean(torch.stack(token_reassembly))
-                    output.append(new_enc)
-                    token_reassembly = []
+            # Exclude 'JUNK'
+            elif al != 'JUNK':
 
-                # If token is standalone, not subword tokenized, just add its representation to the output list
-                if alignment_list[idx + 1] != 'PART':
-                    output.append(enc)
+                if al == 'TOKEN':
 
-                # Else just add it as a candidate to 'token_reassembly'
-                else:
+                    # Average the subword tokens in token_reassembly if it exists
+                    if token_reassembly:
+                        new_enc = torch.mean(torch.stack(token_reassembly))
+                        sentence_tokens.append(new_enc)
+                        token_reassembly = []
+
+                    # If token is standalone, not subword tokenized, just add its representation to the output list
+                    if als[idx + 1] not in ['PART', 'JUNK']:
+                        sentence_tokens.append(enc)
+
+                    # Else just add it as a candidate to 'token_reassembly'
+                    else:
+                        token_reassembly.append(enc)
+
+                # If a token is PART, add it to 'token_reassembly'
+                elif al == 'PART':
                     token_reassembly.append(enc)
 
-            # If a token is PART, add it to 'token_reassembly'
-            elif al == 'PART':
-                token_reassembly.append(enc)
+        output_encodings.append(sentence_tokens)
 
-    print((output))
+    # print(output_encodings)
+    # for item in output_encodings:
+        # print(len(item))
+    # print()
+    # for item in alignment_list:
+    #     print(len(item))
+    #     print(item)
+    # for dec in sentences_decoded:
+    #     print(dec)
+    # print(clss)
+    return output_encodings, tokenizer, padded, clss
 
 
-path = '../../parc30-conll/train-conll-foreval/wsj_0012.xml.conll.features.foreval'
-embedding_extraction(path)
+# path = '../../parc30-conll/train-conll-foreval/wsj_0012.xml.conll.features.foreval'
+path = '../data/parc30-conll/train-conll-foreval/wsj_0069.xml.conll.features.foreval'
+output_encodings, tokenizer, padded, clss = embedding_extraction(path)
+
+# print(len(output_encodings[0]))
+
+# print(tokenizer.char_to_token('a'))
+
+
+
+# tokenized_word = tokenizer.tokenize('Myrthe hates unconsiderateness')
+# n_subwords = len(tokenized_word)
+# print(tokenized_word, n_subwords)
