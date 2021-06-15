@@ -6,183 +6,195 @@ import pandas as pd
 
 import warnings
 warnings.filterwarnings('ignore')
-# from sklearn.model_selection import train_test_split
-# from sklearn.model_selection import GridSearchCV
-# from sklearn.model_selection import cross_val_score
-# from sklearn.linear_model import LogisticRegression
 
 
-def embedding_extraction(path):
-    '''
+def prepare_segment_numbers(tokens, max_len):
+    """
+    Append cls, sep and pad tokens.
+    """
+    prepared_segment_numbers = np.concatenate((['[CLS]'], tokens, ['[SEP]']))
+    padded_prepared_segment_numbers = np.concatenate(
+        (prepared_segment_numbers, ['[PAD]'] * (max_len - len(prepared_segment_numbers)))
+    )
+    return padded_prepared_segment_numbers
 
-    :param path: path to file for processing
-    :return:
-    '''
 
-    # Read the input file
+def extract_sentences_from_df(path):
+    """
+    Get string and list representation of the sentences
+    in an input document.
+    """
+    string_sentences = []
+    list_sentences = []
+
     df = pd.read_csv(path, delimiter='\t', header=None)
 
-    # Merging the tokens into sentences
-    sentences = df.groupby(1)[5]
-    sents = []
-    sent_token_list = []
-    segmented_numbers = []
+    sentence_groups = df.groupby(1)[5]
 
-    for idx, sentence in sentences:
-        sent_token_list.append(sentence.values)
-        sent = ' '.join(sentence.values)
-        sents.append(sent)
+    # Extract sentences in string and list format
+    for idx, sentence in sentence_groups:
+        string_sentence = ' '.join(sentence.values)
+        string_sentences.append(string_sentence)
 
-    print(sent_token_list)
+        list_sentences.append(sentence.values)
 
-    # load DistilBERT model
+    return string_sentences, list_sentences
+
+
+def initialize_bert():
+    """
+    Initialize DistilBERT and its tokenizer,
+    returns the tokenizer and the model.
+    """
     model_class, tokenizer_class, pretrained_weights = (
         tf.DistilBertModel,
         tf.DistilBertTokenizer,
         'distilbert-base-uncased'
     )
 
-    # Load pretrained model/tokenizer
     tokenizer = tokenizer_class.from_pretrained(pretrained_weights)
     model = model_class.from_pretrained(pretrained_weights)
 
-    for sent in sent_token_list:
-        sent_numbers = []
-        for token in sent:
-            sent_numbers.append(len(tokenizer.tokenize(token)))
-        segmented_numbers.append(sent_numbers)
+    return tokenizer, model
 
-    print(segmented_numbers)
-    for seg in segmented_numbers:
-        print(len(seg))
 
-    # Tokenize sentences
-    tokenized = []
-    for sent in sents:
-        tokens = tokenizer.encode(sent, add_special_tokens=True)
-        tokenized.append(tokens)
+def tokenize_sentences(string_sentences, tokenizer):
+    """
+    Tokenizes the string input sentences.
+    """
+    tokenized_sentences = []
 
-    # Padding time
+    for string_sentence in string_sentences:
+        tokens = tokenizer.encode(string_sentence, add_special_tokens=True)
+        tokenized_sentences.append(tokens)
+
+    return tokenized_sentences
+
+
+def padding_time(tokenized_sentences):
+    """
+    Carries out padding on the tokenized sentences,
+    returning the padded sentences, the attention mask,
+    and the max length of the sentences in the input document.
+    """
     max_len = 0
 
-    for i in tokenized:
-        if len(i) > max_len:
-            max_len = len(i)
+    for sent in tokenized_sentences:
+        if len(sent) > max_len:
+            max_len = len(sent)
 
-    padded = np.array(
-        [i + [0]*(max_len - len(i)) for i in tokenized]
+    padded_sentences = np.array(
+        [sent + [0] * (max_len - len(sent))
+         for sent in tokenized_sentences]
     )
 
-    # Create the attention mask so we know what to ignore
-    attention_mask = np.where(padded != 0, 1, 0)
+    attention_mask = np.where(padded_sentences != 0, 1, 0)
 
-    # Training DistilBERT
-    input_ids = torch.tensor(padded)
+    return padded_sentences, attention_mask, max_len
+
+
+def extract_token_segment_numbers(list_sentences, tokenizer):
+    """
+    Returns how many segments a single token is split
+    into by the BERT tokenizer.
+    """
+    segment_numbers = []
+
+    for sent in list_sentences:
+
+        segment_number = [
+            len(tokenizer.tokenize(word))
+            for word in sent
+        ]
+
+        segment_numbers.append(segment_number)
+
+    return segment_numbers
+
+
+def create_alignment_list(segment_numbers, list_sentences, max_len):
+    """
+    Creates an alignment list that allows the
+    extraction of token encodings aligning with
+    the input document.
+    """
+    alignment = []
+
+    for segment_number, list_sentence in zip(segment_numbers, list_sentences):
+
+        sentence_alignment = []
+
+        for number, word in zip(segment_number, list_sentence):
+            sentence_alignment.append(word)
+
+            if number != 1:
+                sentence_alignment.extend(['[PART]'] * (number - 1))
+
+        padded_sentence_alignment = prepare_segment_numbers(sentence_alignment, max_len)
+
+        alignment.append(padded_sentence_alignment)
+
+    return alignment
+
+
+def encode_sentences(padded_sentences, attention_mask, model):
+    """
+    Create BERT encodings of the input sentences.
+    """
+    input_ids = torch.tensor(padded_sentences)
     attention_mask = torch.tensor(attention_mask)
 
     with torch.no_grad():
         last_hidden_states = model(input_ids, attention_mask=attention_mask)
 
-    # last_hidden_states format: [0][sentence number, token position, hidden unit outputs]
-    # first and last tokens are [CLS] and [SEP]
-    # multiple [PAD] tokens might appear after [SEP]
-    # one token has 768 dimensions of embeddings
-    sentences_encoded = []
-    sentences_decoded = []
+    encoded_sentences = [
+        last_hidden_states[0][i, :, :]
+        for i in range(len(padded_sentences))
+    ]
 
-    for i in range(len(sents)):
-        # sentence_encoded = last_hidden_states[0][i, :, :]
-        sentence_encoded = last_hidden_states[0][i, :, :]
-        sentence_decoded = tokenizer.convert_ids_to_tokens(padded[i])
+    return encoded_sentences
 
-        sentences_encoded.append(sentence_encoded)
-        sentences_decoded.append(sentence_decoded)
 
-    print(sentences_decoded)
+def extract_token_level_encodings(encoded_sentences, alignment):
+    """
+    Return the token level encodings and the sentence level encodings.
+    """
+    token_encodings = []
+    sentence_encodings = []
 
-    # Create an alignment list where important tokens are marked with CLS, TOKEN, or PART, rest is marked as JUNK
-    alignment_list = []
-
-    for sentence in sentences_decoded:
-
-        candidate_list = []
-
-        for dec in sentence:
-
-            if dec == '[CLS]':
-                candidate_list.append('CLS')
-            elif dec.startswith('##'):
-                candidate_list.append('PART')
-            elif dec not in ['[SEP]', '[PAD]']:
-                candidate_list.append('TOKEN')
-            else:
-                candidate_list.append('JUNK')
-
-        alignment_list.append(candidate_list)
-
-    # Create sentence representation in output list for each token, while gathering CLSs in their own list
-    output_encodings = []
-    clss = []
-
-    for enc_sent, dec_sent, als in zip(sentences_encoded, sentences_decoded, alignment_list):
+    for idx, (encoded_sentence, sentence_alignment) in enumerate(zip(encoded_sentences, alignment)):
 
         sentence_tokens = []
-        token_reassembly = []
 
-        for idx, (enc, dec, al) in enumerate(zip(enc_sent, dec_sent, als)):
+        for encoded_token, al in zip(encoded_sentence, sentence_alignment):
 
-            # Collect CLSs
-            if al == 'CLS':
-                clss.append(enc)
+            if al == '[CLS]':
+                sentence_encodings.append(encoded_token)
 
-            # Exclude 'JUNK'
-            elif al != 'JUNK':
+            elif al not in ['[SEP]', '[PAD]', '[PART]']:
+                sentence_tokens.append(encoded_token)
 
-                if al == 'TOKEN':
+        token_encodings.append(sentence_tokens)
 
-                    # Average the subword tokens in token_reassembly if it exists
-                    if token_reassembly:
-                        new_enc = torch.mean(torch.stack(token_reassembly))
-                        sentence_tokens.append(new_enc)
-                        token_reassembly = []
-
-                    # If token is standalone, not subword tokenized, just add its representation to the output list
-                    if als[idx + 1] not in ['PART', 'JUNK']:
-                        sentence_tokens.append(enc)
-
-                    # Else just add it as a candidate to 'token_reassembly'
-                    else:
-                        token_reassembly.append(enc)
-
-                # If a token is PART, add it to 'token_reassembly'
-                elif al == 'PART':
-                    token_reassembly.append(enc)
-
-        output_encodings.append(sentence_tokens)
-
-    # print(output_encodings)
-    # for item in output_encodings:
-        # print(len(item))
-    # print()
-    # for item in alignment_list:
-    #     print(len(item))
-    #     print(item)
-    # for dec in sentences_decoded:
-    #     print(dec)
-    # print(clss)
-    return output_encodings, tokenizer, padded, clss
+    return token_encodings, sentence_encodings
 
 
-# path = '../../parc30-conll/train-conll-foreval/wsj_0012.xml.conll.features.foreval'
+def process_document(path):
+    """
+    This function takes an input path, and it creates
+    encodings for each sentence and each token in the sentences.
+    """
+    string_sentences, list_sentences = extract_sentences_from_df(path)
+    tokenizer, model = initialize_bert()
+    tokenized_sentences = tokenize_sentences(string_sentences, tokenizer)
+    padded_sentences, attention_mask, max_len = padding_time(tokenized_sentences)
+    segment_numbers = extract_token_segment_numbers(list_sentences, tokenizer)
+    alignment = create_alignment_list(segment_numbers, list_sentences, max_len)
+    encoded_sentences = encode_sentences(padded_sentences, attention_mask, model)
+
+    token_level_encodings, sentence_level_encodings = extract_token_level_encodings(encoded_sentences, alignment)
+
+    return token_level_encodings, sentence_level_encodings
+
+
 path = '../data/parc30-conll/train-conll-foreval/wsj_0069.xml.conll.features.foreval'
-output_encodings, tokenizer, padded, clss = embedding_extraction(path)
-
-# print(len(output_encodings[0]))
-
-# print(tokenizer.char_to_token('a'))
-
-
-
-# tokenized_word = tokenizer.tokenize('Myrthe hates unconsiderateness')
-# n_subwords = len(tokenized_word)
-# print(tokenized_word, n_subwords)
