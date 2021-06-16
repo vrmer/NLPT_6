@@ -47,4 +47,4 @@ def preprocess_files(source_dir, target_dir, col=-1):
                         ff.write('\n'.join(lines))
 
 
-preprocess_files('.\\data\\', '.\\preprocessed\\')
+preprocess_files('..\\data\\data\\', '..\\data\\preprocessed\\')
