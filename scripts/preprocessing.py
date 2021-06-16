@@ -51,7 +51,8 @@ def preprocess_files(source_dir, target_dir, col=-1):
                     lines = []  # use this to store all preprocessed lines in
                     for line in f.readlines():
                         line = line.rstrip().split('\t')  # split each line into columns
-                        line = line[:-1] + simplify_annotation(line[-1])  # simplify the final column
+                        if len(line) > 1:  # if the line is not an empty line
+                            line = line[:-1] + simplify_annotation(line[-1])  # simplify the final column
                         lines.append('\t'.join(line))  # and stitch them back together
                     current_folder = re.findall('(test|dev|train)', subdir)[0]  # check whether in the dev, train, or test set
                     this_target_dir = os.path.join(target_dir, current_folder + '\\')  # name the folder accordingly
