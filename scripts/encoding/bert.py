@@ -179,13 +179,16 @@ def extract_token_level_encodings(encoded_sentences, alignment):
     return token_encodings, sentence_encodings
 
 
+tokenizer, model = initialize_bert()
+
+
 def process_document(path):
     """
     This function takes an input path, and it creates
     encodings for each sentence and each token in the sentences.
     """
     string_sentences, list_sentences = extract_sentences_from_df(path)
-    tokenizer, model = initialize_bert()
+    # tokenizer, model = initialize_bert()
     tokenized_sentences = tokenize_sentences(string_sentences, tokenizer)
     padded_sentences, attention_mask, max_len = padding_time(tokenized_sentences)
     segment_numbers = extract_token_segment_numbers(list_sentences, tokenizer)
@@ -195,6 +198,3 @@ def process_document(path):
     token_level_encodings, sentence_level_encodings = extract_token_level_encodings(encoded_sentences, alignment)
 
     return token_level_encodings, sentence_level_encodings
-
-
-path = '../data/parc30-conll/train-conll-foreval/wsj_0069.xml.conll.features.foreval'
