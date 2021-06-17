@@ -53,9 +53,11 @@ def extract_gold_label(cell):
     Strip underscores and info attached to gold label (e.g. -PD-0).
     :return: gold labels
     '''
-    match = re.search(r'[BI]-[A-Z]*', str(cell))
+    match = re.findall(r'[BI]-[A-Z]*', str(cell))
     if match:
-        cell = match.group(0)
+        for tag in match:
+            if "-NE" not in tag: # exclude nested attributions
+                cell = tag
     else: # if cell only contains underscores, token does not belong to a source, a cue or a content
         cell = '_'
     return cell
@@ -67,9 +69,11 @@ class SentenceGetter(object):
         self.n_sent = 1
         self.data = data
         self.empty = False
-        agg_func = lambda s: [(t, s_n, l, p, d, h, a, g) for t, s_n, l, p, d, h, a, g in zip(
-                                                                     s["token"].values.tolist(),
+        agg_func = lambda s: [(ar, s_n, i, t, l, p, d, h, a, g) for ar, s_n, i, t, l, p, d, h, a, g in zip(
+                                                                     s["article"].values.tolist(),
+                                                                     s["sent_n"].values.tolist(),
                                                                      s["sent_idx"].values.tolist(),
+                                                                     s["token"].values.tolist(),
                                                                      s["lemma"].values.tolist(),
                                                                      s["pos"].values.tolist(),
                                                                      s["dep_label"].values.tolist(),
@@ -99,7 +103,7 @@ def get_graph (sentence):
     edges = []  # a  list of tuples with dep links, represented as head and dependent and their respective positions
     for word in sentence:
         head_index = word[-3]
-        dep_index = word[1]
+        dep_index = word[2]
         # dep_label = word[-4]
         # if dep_label != 'ROOT':
         #     edges.append((head_index, dep_index))
@@ -110,17 +114,17 @@ def get_graph (sentence):
 
 def generate_baseline(sentences, cue_gzt):
 
-    predictions = []
-    c = 0
+    predictions = dict() # top level dict with articles as keys
 
-    for s in sentences[0:15]:
-        pred_dict = dict()
+    for s in sentences[0:5]:
+
+        pred_dict = dict() # lower level dict with token index as keys
 
         # try to find cues by comparing each token lemma with the cue gazetteer
         for token in s:
 
-            lemma = token[2]
-            idx = token[1]
+            lemma = token[3]
+            idx = token[2]
 
             if lemma in cue_gzt and "CUE" not in pred_dict.values():
 
@@ -134,7 +138,7 @@ def generate_baseline(sentences, cue_gzt):
                     # if token is dependent and dep label is advmod, neg, aux or mwe, then it is part of the CUE span
                     head = t[-3]
                     dep_label = t[-4]
-                    t_idx = t[1]
+                    t_idx = t[2]
                     if head == idx and dep_label in ["advmod","neg","aux","mwe"]:
                         pred_dict[t_idx] = 'CUE'
 
@@ -143,7 +147,6 @@ def generate_baseline(sentences, cue_gzt):
                         pred_dict[t_idx] = 'SOURCE'
                         # its direct and indirect dependents compose the source span.
                         dependents = nx.descendants(graph,t_idx)
-                        print(dependents)
                         for dep in dependents:
                             pred_dict[dep] = 'SOURCE'
 
@@ -161,36 +164,37 @@ def generate_baseline(sentences, cue_gzt):
 
         # Add BIO-tags
         tags = list(pred_dict.values())
-        pred = list()
         counter = 0
         for tag in tags:
             if tag != '_':
                 if tag not in tags[:counter]:
-                    pred.append(f'B-{tag}')
+                    pred_dict[counter+1] = f'B-{tag}'
                 else:
-                    pred.append(f'I-{tag}')
-            else:
-                pred.append('_')
+                    pred_dict[counter+1] = f'I-{tag}'
             counter += 1
 
-        predictions.append(pred)
+        # add token tags to dictionary of corresponding article and sentence
+        article = s[0][0]
+        sent_number = s[0][1]
+        if article not in predictions.keys():
+            pred_sent = {sent_number : pred_dict} # second level dict with sentence index as keys
+            predictions[article] = pred_sent
+        else:
+            predictions[article][sent_number] = pred_dict
 
-        print(s)
-        print([word[0] for word in s])
-        print(pred_dict)
-        print(pred)
-        print()
+    print(predictions)
 
     return predictions
 
 
 # generate full training data frame
-# df = read_in_files('../../data_ar', 'parc')
+corpus = "polnear"
+# df = read_in_files('../../data_ar', corpus)
 # df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
-# df.to_csv('../data/full_train_dataset_parc.tsv',sep='\t')
+# df.to_csv(f'../data/full_train_dataset_{corpus}.tsv',sep='\t')
 
 # read in full training data frame
-df = pd.read_csv('../data/full_train_dataset_parc.tsv',sep='\t')
+df = pd.read_csv(f'../data/full_train_dataset_{corpus}.tsv',sep='\t')
 
 # check most frequent dep_labels for each gold label to support syntactic baseline dev
 # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
@@ -208,3 +212,30 @@ cue_gzt = pd.read_csv('../data/cue_list.csv')["cue"].tolist()
 
 # generate syntactic baseline
 pred = generate_baseline(sentences, cue_gzt)
+
+# generate baseline output file in conll format
+# find how many cues are there per article to add same number of subcolumns to attribution column
+attributions = []
+for article in df.article.unique():
+    if article in pred.keys():
+        n_cues = 0
+        print(article)
+        print(pred[article])
+        for sent, tokens in pred[article].items():
+            for tag in tokens.values():
+                if "CUE" in tag:
+                    n_cues += 1
+        # add as many underscores as the number of cues in the article
+        att = ''
+        for cue in range(n_cues):
+                att = att+'_ '
+        # add tags to the subcolumn of its AR
+        for sent, tokens in pred[article].items():
+            for tag in tokens.values():
+                if tag != '_':
+                    pass
+            for token in tokens:
+                attributions.append(att)
+                print(att)
+
+
