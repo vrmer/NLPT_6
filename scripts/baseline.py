@@ -2,6 +2,7 @@ import re
 import pandas as pd
 import os
 import networkx as nx
+from collections import OrderedDict
 
 def generate_train_filepaths(path_to_directory, corpus):
     '''
@@ -116,7 +117,7 @@ def generate_baseline(sentences, cue_gzt):
 
     predictions = dict() # top level dict with articles as keys
 
-    for s in sentences[0:5]:
+    for s in sentences:
 
         pred_dict = dict() # lower level dict with token index as keys
 
@@ -162,7 +163,10 @@ def generate_baseline(sentences, cue_gzt):
                 if idx not in pred_dict.keys():
                     pred_dict[idx] = '_'
 
+
         # Add BIO-tags
+        article = s[0][0]
+        sent_number = s[0][1]
         tags = list(pred_dict.values())
         counter = 0
         for tag in tags:
@@ -172,6 +176,9 @@ def generate_baseline(sentences, cue_gzt):
                 else:
                     pred_dict[counter+1] = f'I-{tag}'
             counter += 1
+        if article == 'politico_2016-05-22_mark-cuban-i-d-consider-a-future.txt.xml' and sent_number == 19:
+            print(tags)
+            print(pred_dict)
 
         # add token tags to dictionary of corresponding article and sentence
         article = s[0][0]
@@ -182,10 +189,45 @@ def generate_baseline(sentences, cue_gzt):
         else:
             predictions[article][sent_number] = pred_dict
 
-    print(predictions)
 
     return predictions
 
+def generate_attribution_column(df,pred):
+    '''
+    Given the input data frame and a dictionary of predictions (in which article is the first level,
+    sentences the second level, tokens the third level, and tags the lowest level values),
+    :param df:
+    :param pred:
+    :return:
+    '''
+
+    attributions = []  # the column with attributions in output file
+    for article in df.article.unique():
+        # find how many cues are there per article to add same number of subcolumns to attribution column
+        n_cues = 0
+        for sent, tokens in pred[article].items():
+            for tag in tokens.values():
+                if "CUE" in tag:
+                    n_cues += 1
+        # add tags to the subcolumn of its AR
+        df_article = df.loc[df.article == article]
+        subcol_idx = 0
+        for sent in df_article.sent_n.unique():
+            # tags = pred[article][sent].values()
+            sorted_items = sorted(pred[article][sent].items()) # sort sentence dict keys by token index in ascending order to match their order in the data frame
+            tags = [item[1] for item in sorted_items]
+            if any(label in tags for label in ['B-SOURCE', 'B-CONTENT', 'B-CUE', 'I-SOURCE', 'I-CONTENT', 'I-CUE']):
+                for tag in tags:
+                    att = ['_' for cue in range(n_cues)]  # add as many subcolumns as the number of cues in the article
+                    att[subcol_idx] = tag  # add the token tag to the subcolumn at position subcol_idx
+                    attributions.append(' '.join(att))  # join subcolumns into a string separated with whitespaces
+                subcol_idx += 1  # increase subcolumn position for the next AR
+            else:  # if the sentence has no ARs, just add attribution with underscores
+                for tag in tags:
+                    att = ['_' for cue in range(n_cues)]
+                    attributions.append(' '.join(att))
+
+    return attributions
 
 # generate full training data frame
 corpus = "polnear"
@@ -214,28 +256,12 @@ cue_gzt = pd.read_csv('../data/cue_list.csv')["cue"].tolist()
 pred = generate_baseline(sentences, cue_gzt)
 
 # generate baseline output file in conll format
-# find how many cues are there per article to add same number of subcolumns to attribution column
-attributions = []
-for article in df.article.unique():
-    if article in pred.keys():
-        n_cues = 0
-        print(article)
-        print(pred[article])
-        for sent, tokens in pred[article].items():
-            for tag in tokens.values():
-                if "CUE" in tag:
-                    n_cues += 1
-        # add as many underscores as the number of cues in the article
-        att = ''
-        for cue in range(n_cues):
-                att = att+'_ '
-        # add tags to the subcolumn of its AR
-        for sent, tokens in pred[article].items():
-            for tag in tokens.values():
-                if tag != '_':
-                    pass
-            for token in tokens:
-                attributions.append(att)
-                print(att)
+attribution_column = generate_attribution_column(df,pred)
+output_file = df.copy().drop(["gold"], axis=1)
+output_file["att"] = attribution_column
+output_file.to_csv(f'../data/baseline_output_{corpus}.tsv', sep='\t')
+
+
+
 
 
