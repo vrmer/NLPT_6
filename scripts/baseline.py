@@ -206,9 +206,8 @@ def generate_attribution_column(df,pred):
         # find how many cues are there per article to add same number of subcolumns to attribution column
         n_cues = 0
         for sent, tokens in pred[article].items():
-            for tag in tokens.values():
-                if "CUE" in tag:
-                    n_cues += 1
+             if "B-CUE" in tokens.values():
+                n_cues += 1
         # add tags to the subcolumn of its AR
         df_article = df.loc[df.article == article]
         subcol_idx = 0
