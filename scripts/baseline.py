@@ -4,9 +4,9 @@ import os
 import networkx as nx
 from collections import OrderedDict
 
-def generate_train_filepaths(path_to_directory, corpus):
+def generate_filepaths(path_to_directory, corpus, dataset):
     '''
-    Generate a list with the filepaths to each training article
+    Generate a list with the filepaths to each article
     :return: list of filepath strings
     '''
 
@@ -15,14 +15,13 @@ def generate_train_filepaths(path_to_directory, corpus):
         # DRI: second condition is for some reason necessary for the script to run in my machine
         if len(files) > 0 \
         and files[0] != '.DS_Store' \
-        and 'test' not in subdir \
-        and 'dev' not in subdir\
+        and dataset in subdir \
         and corpus in subdir:
             file_list += [os.path.join(subdir, file) for file in files]
 
     return file_list
 
-def read_in_files (path_to_directory, corpus):
+def read_in_files (path_to_directory, corpus, dataset):
     '''
     Read in files in given directory as data frames and concatenate them to form an unique data frame
     :param path_to_directory: the path to directory where the folders 'parc' and 'polnear' are located in your local machine.
@@ -30,7 +29,7 @@ def read_in_files (path_to_directory, corpus):
     :return: the whole data as one pandas data frame
     '''
 
-    file_list = generate_train_filepaths(path_to_directory, corpus)
+    file_list = generate_filepaths(path_to_directory, corpus, dataset)
     full_df = pd.DataFrame()
     for file in file_list:
         data = pd.read_csv(file, sep='\t', names=['article',
@@ -70,7 +69,7 @@ class SentenceGetter(object):
         self.n_sent = 1
         self.data = data
         self.empty = False
-        agg_func = lambda s: [(ar, s_n, i, t, l, p, d, h, a, g) for ar, s_n, i, t, l, p, d, h, a, g in zip(
+        agg_func = lambda s: [(ar, s_n, i, t, l, p, d, h, a) for ar, s_n, i, t, l, p, d, h, a in zip(
                                                                      s["article"].values.tolist(),
                                                                      s["sent_n"].values.tolist(),
                                                                      s["sent_idx"].values.tolist(),
@@ -80,7 +79,6 @@ class SentenceGetter(object):
                                                                      s["dep_label"].values.tolist(),
                                                                      s["dep_head"].values.tolist(),
                                                                      s["att"].values.tolist(),
-                                                                     s["gold"].values.tolist()
                                                                      )]
         self.grouped = self.data.groupby(["article","sent_n"]).apply(agg_func)
         self.sentences = [s for s in self.grouped]
@@ -103,7 +101,7 @@ def get_graph (sentence):
 
     edges = []  # a  list of tuples with dep links, represented as head and dependent and their respective positions
     for word in sentence:
-        head_index = word[-3]
+        head_index = word[-2]
         dep_index = word[2]
         # dep_label = word[-4]
         # if dep_label != 'ROOT':
@@ -137,8 +135,8 @@ def generate_baseline(sentences, cue_gzt):
                 for t in s:
 
                     # if token is dependent and dep label is advmod, neg, aux or mwe, then it is part of the CUE span
-                    head = t[-3]
-                    dep_label = t[-4]
+                    head = t[-2]
+                    dep_label = t[-3]
                     t_idx = t[2]
                     if head == idx and dep_label in ["advmod","neg","aux","mwe"]:
                         pred_dict[t_idx] = 'CUE'
@@ -176,9 +174,6 @@ def generate_baseline(sentences, cue_gzt):
                 else:
                     pred_dict[counter+1] = f'I-{tag}'
             counter += 1
-        if article == 'politico_2016-05-22_mark-cuban-i-d-consider-a-future.txt.xml' and sent_number == 19:
-            print(tags)
-            print(pred_dict)
 
         # add token tags to dictionary of corresponding article and sentence
         article = s[0][0]
@@ -228,14 +223,27 @@ def generate_attribution_column(df,pred):
 
     return attributions
 
-# generate full training data frame
-corpus = "polnear"
-# df = read_in_files('../../data_ar', corpus)
-# df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
-# df.to_csv(f'../data/full_train_dataset_{corpus}.tsv',sep='\t')
 
-# read in full training data frame
-df = pd.read_csv(f'../data/full_train_dataset_{corpus}.tsv',sep='\t')
+# generate full data frame (all articles from a corpus concatenated)
+corpus = "polnear"
+filename = 'full_dev_dataset'
+dataset = 'dev'
+df = read_in_files('../../data_ar', corpus, dataset)
+# df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
+df.to_csv(f'../data/output/gold/{filename}_{corpus}.tsv',sep='\t', index=False, header=False)
+
+# read in full data frame
+df = pd.read_csv(f'../data/output/gold/{filename}_{corpus}.tsv',sep='\t', names=['article',
+                                                    'sent_n',
+                                                    'doc_idx',
+                                                    'sent_idx',
+                                                    'offsets',
+                                                    'token',
+                                                    'lemma',
+                                                    'pos',
+                                                    'dep_label',
+                                                    'dep_head',
+                                                    'att'])
 
 # check most frequent dep_labels for each gold label to support syntactic baseline dev
 # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
@@ -246,7 +254,7 @@ getter = SentenceGetter(df)
 sentences = getter.sentences
 
 # collect gold labels
-gold = [[token[-1] for token in sentence] for sentence in getter.sentences]
+# gold = [[token[-1] for token in sentence] for sentence in getter.sentences]
 
 # read in list of reporting verbs from literature
 cue_gzt = pd.read_csv('../data/cue_list.csv')["cue"].tolist()
@@ -256,11 +264,6 @@ pred = generate_baseline(sentences, cue_gzt)
 
 # generate baseline output file in conll format
 attribution_column = generate_attribution_column(df,pred)
-output_file = df.copy().drop(["gold"], axis=1)
+output_file = df.copy()
 output_file["att"] = attribution_column
-output_file.to_csv(f'../data/baseline_output_{corpus}.tsv', sep='\t')
-
-
-
-
-
+output_file.to_csv(f'../data/output/baseline/baseline_output_{dataset}_{corpus}.tsv', sep='\t', index=False, header=False)
