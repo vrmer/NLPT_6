@@ -1,8 +1,13 @@
+import joblib
+import os
 import torch
 import transformers as tf
 
 import numpy as np
 import pandas as pd
+
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import MinMaxScaler
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -46,6 +51,7 @@ def initialize_bert():
     Initialize DistilBERT and its tokenizer,
     returns the tokenizer and the model.
     """
+
     model_class, tokenizer_class, pretrained_weights = (
         tf.DistilBertModel,
         tf.DistilBertTokenizer,
@@ -155,46 +161,68 @@ def encode_sentences(padded_sentences, attention_mask, model):
     return encoded_sentences
 
 
-def extract_token_level_encodings(encoded_sentences, alignment):
+def decrease_dimensionality(input_encoding, pca, scaler, first_index=True):
+    """
+    This function scales the BERT output and decreases dimensionality.
+    """
+    prepared_encoding = input_encoding.numpy().reshape(32, 24)
+
+    if first_index is True:
+        scaled_encoding = scaler.fit_transform(prepared_encoding)
+        pca_encoding = pca.fit_transform(scaled_encoding)
+    else:
+        scaled_encoding = scaler.transform(prepared_encoding)
+        pca_encoding = pca.transform(scaled_encoding)
+
+    return pca_encoding
+
+
+def extract_token_level_encodings(encoded_sentences, alignment, corpus, path, pca):
     """
     Return the token level encodings and the sentence level encodings.
     """
-    token_encodings = []
-    sentence_encodings = []
+    filename = os.path.basename(path)
+    dir_name = os.path.basename(
+        os.path.dirname(path)
+    )
+
+    os.mkdir(f'../data/encodings/{corpus}/{dir_name}/{filename}')
 
     for idx, (encoded_sentence, sentence_alignment) in enumerate(zip(encoded_sentences, alignment)):
 
         sentence_tokens = []
 
+        output_name = f'../data/encodings/{corpus}/{dir_name}/{filename}/{idx}.sav'
+
         for encoded_token, al in zip(encoded_sentence, sentence_alignment):
 
-            if al == '[CLS]':
-                sentence_encodings.append(encoded_token)
+            if al not in ['[SEP]', '[PAD]', '[PART]']:
 
-            elif al not in ['[SEP]', '[PAD]', '[PART]']:
-                sentence_tokens.append(encoded_token)
+                if idx == 0:
+                    reduced_tokens = decrease_dimensionality(encoded_token, pca, scaler)
+                else:
+                    reduced_tokens = decrease_dimensionality(encoded_token, pca, scaler, first_index=False)
 
-        token_encodings.append(sentence_tokens)
+                sentence_tokens.append(reduced_tokens)
 
-    return token_encodings, sentence_encodings
+        joblib.dump(sentence_tokens, output_name, compress=True)
 
 
 tokenizer, model = initialize_bert()
+pca = PCA(n_components=24, svd_solver='auto')
+scaler = MinMaxScaler(feature_range=(0, 1))
 
 
-def process_document(path):
+def process_document(path, corpus):
     """
     This function takes an input path, and it creates
     encodings for each sentence and each token in the sentences.
     """
     string_sentences, list_sentences = extract_sentences_from_df(path)
-    # tokenizer, model = initialize_bert()
     tokenized_sentences = tokenize_sentences(string_sentences, tokenizer)
     padded_sentences, attention_mask, max_len = padding_time(tokenized_sentences)
     segment_numbers = extract_token_segment_numbers(list_sentences, tokenizer)
     alignment = create_alignment_list(segment_numbers, list_sentences, max_len)
     encoded_sentences = encode_sentences(padded_sentences, attention_mask, model)
 
-    token_level_encodings, sentence_level_encodings = extract_token_level_encodings(encoded_sentences, alignment)
-
-    return token_level_encodings, sentence_level_encodings
+    extract_token_level_encodings(encoded_sentences, alignment, corpus, path, pca)
