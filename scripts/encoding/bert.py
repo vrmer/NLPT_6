@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import MinMaxScaler
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -161,18 +160,18 @@ def encode_sentences(padded_sentences, attention_mask, model):
     return encoded_sentences
 
 
-def decrease_dimensionality(input_encoding, pca, scaler, first_index=True):
+def decrease_dimensionality(input_encoding, pca, first_index=True):
     """
-    This function scales the BERT output and decreases dimensionality.
+    This function decreases dimensionality of the BERT output.
     """
     prepared_encoding = input_encoding.numpy().reshape(32, 24)
 
     if first_index is True:
-        scaled_encoding = scaler.fit_transform(prepared_encoding)
-        pca_encoding = pca.fit_transform(scaled_encoding)
+        # scaled_encoding = scaler.fit_transform(prepared_encoding)
+        pca_encoding = pca.fit_transform(prepared_encoding)
     else:
-        scaled_encoding = scaler.transform(prepared_encoding)
-        pca_encoding = pca.transform(scaled_encoding)
+        # scaled_encoding = scaler.transform(prepared_encoding)
+        pca_encoding = pca.transform(prepared_encoding)
 
     return pca_encoding
 
@@ -199,9 +198,9 @@ def extract_token_level_encodings(encoded_sentences, alignment, corpus, path, pc
             if al not in ['[SEP]', '[PAD]', '[PART]']:
 
                 if idx == 0:
-                    reduced_tokens = decrease_dimensionality(encoded_token, pca, scaler)
+                    reduced_tokens = decrease_dimensionality(encoded_token, pca)
                 else:
-                    reduced_tokens = decrease_dimensionality(encoded_token, pca, scaler, first_index=False)
+                    reduced_tokens = decrease_dimensionality(encoded_token, pca, first_index=False)
 
                 sentence_tokens.append(reduced_tokens)
 
@@ -210,7 +209,6 @@ def extract_token_level_encodings(encoded_sentences, alignment, corpus, path, pc
 
 tokenizer, model = initialize_bert()
 pca = PCA(n_components=24, svd_solver='auto')
-scaler = MinMaxScaler(feature_range=(0, 1))
 
 
 def process_document(path, corpus):
