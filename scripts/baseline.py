@@ -2,7 +2,6 @@ import re
 import pandas as pd
 import os
 import networkx as nx
-from collections import OrderedDict
 
 def generate_filepaths(path_to_directory, corpus, dataset):
     '''
@@ -30,19 +29,22 @@ def read_in_files (path_to_directory, corpus, dataset):
     '''
 
     file_list = generate_filepaths(path_to_directory, corpus, dataset)
-    full_df = pd.DataFrame()
+    column_names = ['article',
+                    'sent_n',
+                    'doc_idx',
+                    'sent_idx',
+                    'offsets',
+                    'token',
+                    'lemma',
+                    'pos',
+                    'dep_label',
+                    'dep_head',
+                    'att']
+    full_df = pd.DataFrame(columns=column_names)
     for file in file_list:
-        data = pd.read_csv(file, sep='\t', names=['article',
-                                                    'sent_n',
-                                                    'doc_idx',
-                                                    'sent_idx',
-                                                    'offsets',
-                                                    'token',
-                                                    'lemma',
-                                                    'pos',
-                                                    'dep_label',
-                                                    'dep_head',
-                                                    'att'])
+        data = pd.read_csv(file, sep='\t', names=column_names, keep_default_na=False, skip_blank_lines=False) # keep the empty line between sentences
+        if file != file_list[-1] and file != file_list[0]:
+            full_df.loc[len(full_df)] = [""]*len(column_names) # add empty line between last sentence of an article and first sentence of the next article
         full_df = pd.concat([full_df,data])
 
 
@@ -226,14 +228,13 @@ def generate_attribution_column(df,pred):
 
 # generate full data frame (all articles from a corpus concatenated)
 corpus = "polnear"
-filename = 'full_dev_dataset'
 dataset = 'dev'
 df = read_in_files('../../data_ar', corpus, dataset)
-# df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
-df.to_csv(f'../data/output/gold/{filename}_{corpus}.tsv',sep='\t', index=False, header=False)
+# # df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
+df.to_csv(f'../data/output/gold/{dataset}_{corpus}.tsv',sep='\t', index=False, header=False)
 
 # read in full data frame
-df = pd.read_csv(f'../data/output/gold/{filename}_{corpus}.tsv',sep='\t', names=['article',
+df_gold = pd.read_csv(f'../data/output/gold/{dataset}_{corpus}.tsv',sep='\t', names=['article',
                                                     'sent_n',
                                                     'doc_idx',
                                                     'sent_idx',
@@ -244,13 +245,14 @@ df = pd.read_csv(f'../data/output/gold/{filename}_{corpus}.tsv',sep='\t', names=
                                                     'dep_label',
                                                     'dep_head',
                                                     'att'])
+df_gold.dropna(how="all", inplace=True)
 
 # check most frequent dep_labels for each gold label to support syntactic baseline dev
 # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
 #     print(df.groupby("gold")["dep_label"].value_counts(normalize=True))
 
 # create sentence instances
-getter = SentenceGetter(df)
+getter = SentenceGetter(df_gold)
 sentences = getter.sentences
 
 # collect gold labels
@@ -263,7 +265,22 @@ cue_gzt = pd.read_csv('../data/cue_list.csv')["cue"].tolist()
 pred = generate_baseline(sentences, cue_gzt)
 
 # generate baseline output file in conll format
-attribution_column = generate_attribution_column(df,pred)
-output_file = df.copy()
+attribution_column = generate_attribution_column(df_gold,pred)
+output_file = df_gold.copy()
 output_file["att"] = attribution_column
-output_file.to_csv(f'../data/output/baseline/baseline_output_{dataset}_{corpus}.tsv', sep='\t', index=False, header=False)
+# select float columns only and convert them into ints
+float_col = output_file.select_dtypes(include=['float64'])
+for col in float_col.columns.values:
+    output_file[col] = output_file[col].astype('int64')
+# write out baseline output file
+df_rows = output_file.values.tolist()
+rows_out = []
+for row in df_rows:
+    rows_out.append(row)
+with open(f'/Users/adrielli/PycharmProjects/NLPT_6/data/output/baseline/{dataset}_{corpus}.tsv', 'w') as tsvfile:
+    for row in rows_out:
+        if row[3] == 1 and row != rows_out[0]:
+            tsvfile.write('\n') # add blank lines between sentences
+        row = [str(cell) for cell in row]
+        line = '\t'.join(row) + '\n'
+        tsvfile.write(line)
