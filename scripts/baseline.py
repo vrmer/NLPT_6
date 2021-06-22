@@ -20,36 +20,6 @@ def generate_filepaths(path_to_directory, corpus, dataset):
 
     return file_list
 
-def read_in_files (path_to_directory, corpus, dataset):
-    '''
-    Read in files in given directory as data frames and concatenate them to form an unique data frame
-    :param path_to_directory: the path to directory where the folders 'parc' and 'polnear' are located in your local machine.
-    :param corpus: the name of the corpus (that should be part of the name of the folder in which the data files are stored)
-    :return: the whole data as one pandas data frame
-    '''
-
-    file_list = generate_filepaths(path_to_directory, corpus, dataset)
-    column_names = ['article',
-                    'sent_n',
-                    'doc_idx',
-                    'sent_idx',
-                    'offsets',
-                    'token',
-                    'lemma',
-                    'pos',
-                    'dep_label',
-                    'dep_head',
-                    'att']
-    full_df = pd.DataFrame(columns=column_names)
-    for file in file_list:
-        data = pd.read_csv(file, sep='\t', names=column_names, keep_default_na=False, skip_blank_lines=False) # keep the empty line between sentences
-        if file != file_list[-1] and file != file_list[0]:
-            full_df.loc[len(full_df)] = [""]*len(column_names) # add empty line between last sentence of an article and first sentence of the next article
-        full_df = pd.concat([full_df,data])
-
-
-    return full_df
-
 def extract_gold_label(cell):
     '''
     Strip underscores and info attached to gold label (e.g. -PD-0).
@@ -114,6 +84,12 @@ def get_graph (sentence):
     return graph
 
 def generate_baseline(sentences, cue_gzt):
+    """
+    Implement syntactic, gazetteer-based baseline for cue, source and content extraction.
+    :param sentences: list of sentence objects, where each token is represented as a list of corresponding cells in data frame.
+    :param cue_gzt: list of cue words from literature.
+    :return: a nested dictionary, in which the first-level key is the article filename, the second-level key is the sentence number, and the third-level key is the token number. The corresponding predictions are the lowest-level value.
+    """
 
     predictions = dict() # top level dict with articles as keys
 
@@ -192,14 +168,14 @@ def generate_baseline(sentences, cue_gzt):
 def generate_attribution_column(df,pred):
     '''
     Given the input data frame and a dictionary of predictions (in which article is the first level,
-    sentences the second level, tokens the third level, and tags the lowest level values),
-    :param df:
-    :param pred:
-    :return:
+    sentences the second level, tokens the third level, and tags the lowest level values), generate a list of attribution tags.
+    :param df: pandas data frame resulting from reading the article file as with pd.read_csv().
+    :param pred: the dictionary with article, sentences, tokens and respective tags as output by baseline system.
+    :return: a list of attributation tags, where each tag corresponds to a token classification by baseline in conll format e.g. ___I-CONTENT. Each underscore represents an AR in the article.
     '''
 
     attributions = []  # the column with attributions in output file
-    for article in df.article.unique():
+    for article in df.article.unique(): # this is not necessary anymore, as each article is read in as a separate data frame
         # find how many cues are there per article to add same number of subcolumns to attribution column
         n_cues = 0
         for sent, tokens in pred[article].items():
@@ -229,58 +205,59 @@ def generate_attribution_column(df,pred):
 # generate full data frame (all articles from a corpus concatenated)
 corpus = "polnear"
 dataset = 'dev'
-df = read_in_files('../../data_ar', corpus, dataset)
-# # df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
-df.to_csv(f'../data/output/gold/{dataset}_{corpus}.tsv',sep='\t', index=False, header=False)
+files = generate_filepaths(f'../data/{corpus}-conll', corpus, dataset)
+for file in files:
+    # df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
+    column_names = ['article',
+                    'sent_n',
+                    'doc_idx',
+                    'sent_idx',
+                    'offsets',
+                    'token',
+                    'lemma',
+                    'pos',
+                    'dep_label',
+                    'dep_head',
+                    'att']
+    df = pd.read_csv(file, sep='\t', names=column_names)
+    df.dropna(how="all", inplace=True)
 
-# read in full data frame
-df_gold = pd.read_csv(f'../data/output/gold/{dataset}_{corpus}.tsv',sep='\t', names=['article',
-                                                    'sent_n',
-                                                    'doc_idx',
-                                                    'sent_idx',
-                                                    'offsets',
-                                                    'token',
-                                                    'lemma',
-                                                    'pos',
-                                                    'dep_label',
-                                                    'dep_head',
-                                                    'att'])
-df_gold.dropna(how="all", inplace=True)
+    # check most frequent dep_labels for each gold label to support syntactic baseline dev
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+    #     print(df.groupby("gold")["dep_label"].value_counts(normalize=True))
 
-# check most frequent dep_labels for each gold label to support syntactic baseline dev
-# with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-#     print(df.groupby("gold")["dep_label"].value_counts(normalize=True))
+    # create sentence instances
+    getter = SentenceGetter(df)
+    sentences = getter.sentences
 
-# create sentence instances
-getter = SentenceGetter(df_gold)
-sentences = getter.sentences
+    # collect gold labels
+    # gold = [[token[-1] for token in sentence] for sentence in getter.sentences]
 
-# collect gold labels
-# gold = [[token[-1] for token in sentence] for sentence in getter.sentences]
+    # read in list of reporting verbs from literature
+    cue_gzt = pd.read_csv('../data/cue_list.csv')["cue"].tolist()
 
-# read in list of reporting verbs from literature
-cue_gzt = pd.read_csv('../data/cue_list.csv')["cue"].tolist()
+    # generate syntactic baseline
+    pred = generate_baseline(sentences, cue_gzt)
 
-# generate syntactic baseline
-pred = generate_baseline(sentences, cue_gzt)
+    # create attribution column
+    attribution_column = generate_attribution_column(df,pred)
+    output_file = df.copy()
+    output_file["att"] = attribution_column
 
-# generate baseline output file in conll format
-attribution_column = generate_attribution_column(df_gold,pred)
-output_file = df_gold.copy()
-output_file["att"] = attribution_column
-# select float columns only and convert them into ints
-float_col = output_file.select_dtypes(include=['float64'])
-for col in float_col.columns.values:
-    output_file[col] = output_file[col].astype('int64')
-# write out baseline output file
-df_rows = output_file.values.tolist()
-rows_out = []
-for row in df_rows:
-    rows_out.append(row)
-with open(f'/Users/adrielli/PycharmProjects/NLPT_6/data/output/baseline/{dataset}_{corpus}.tsv', 'w') as tsvfile:
-    for row in rows_out:
-        if row[3] == 1 and row != rows_out[0]:
-            tsvfile.write('\n') # add blank lines between sentences
-        row = [str(cell) for cell in row]
-        line = '\t'.join(row) + '\n'
-        tsvfile.write(line)
+    # select float columns only and convert them into ints
+    float_col = output_file.select_dtypes(include=['float64'])
+    for col in float_col.columns.values:
+        output_file[col] = output_file[col].astype('int64')
+
+    # write out baseline output file
+    df_rows = output_file.values.tolist()
+    rows_out = []
+    for row in df_rows:
+        rows_out.append(row)
+    with open(f'/Users/adrielli/PycharmProjects/NLPT_6/data/output/baseline/{dataset}_{corpus}/{os.path.basename(file)}', 'w') as tsvfile:
+        for row in rows_out:
+            if row[3] == 1 and row != rows_out[0]:
+                tsvfile.write('\n') # add blank lines between sentences
+            row = [str(cell) for cell in row]
+            line = '\t'.join(row) + '\n'
+            tsvfile.write(line)
