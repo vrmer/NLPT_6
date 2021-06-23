@@ -254,7 +254,7 @@ for file in files:
     rows_out = []
     for row in df_rows:
         rows_out.append(row)
-    with open(f'/Users/adrielli/PycharmProjects/NLPT_6/data/output/baseline/{dataset}_{corpus}/{os.path.basename(file)}', 'w') as tsvfile:
+    with open(f'/Users/adrielli/PycharmProjects/NLPT_6/data/output/baseline/{dataset}_{corpus}/{os.path.basename(file)}.system', 'w') as tsvfile:
         for row in rows_out:
             if row[3] == 1 and row != rows_out[0]:
                 tsvfile.write('\n') # add blank lines between sentences
