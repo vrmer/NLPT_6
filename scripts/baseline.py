@@ -181,9 +181,12 @@ def generate_attribution_column(df,pred):
         for sent, tokens in pred[article].items():
              if "B-CUE" in tokens.values():
                 n_cues += 1
+        if n_cues == 0: # prevent error that rises when evaluating article in which baseline does not find any ARs
+            n_cues = 1
         # add tags to the subcolumn of its AR
         df_article = df.loc[df.article == article]
         subcol_idx = 0
+        AR_idx = 1 # index of AR in article to attach to token tag
         for sent in df_article.sent_n.unique():
             # tags = pred[article][sent].values()
             sorted_items = sorted(pred[article][sent].items()) # sort sentence dict keys by token index in ascending order to match their order in the data frame
@@ -191,9 +194,13 @@ def generate_attribution_column(df,pred):
             if any(label in tags for label in ['B-SOURCE', 'B-CONTENT', 'B-CUE', 'I-SOURCE', 'I-CONTENT', 'I-CUE']):
                 for tag in tags:
                     att = ['_' for cue in range(n_cues)]  # add as many subcolumns as the number of cues in the article
-                    att[subcol_idx] = tag  # add the token tag to the subcolumn at position subcol_idx
+                    if tag != '_': # if token is an AR element, add the token tag to the subcolumn at position subcol_idx with AR index e.g.__B-SOURCE-3
+                        att[subcol_idx] = tag + '-' + str(AR_idx)
+                    else: # if token is outside AR, just add the underscore
+                        att[subcol_idx] = tag
                     attributions.append(' '.join(att))  # join subcolumns into a string separated with whitespaces
                 subcol_idx += 1  # increase subcolumn position for the next AR
+                AR_idx += 1 # increase AR idx to attach to tags for the next AR
             else:  # if the sentence has no ARs, just add attribution with underscores
                 for tag in tags:
                     att = ['_' for cue in range(n_cues)]
