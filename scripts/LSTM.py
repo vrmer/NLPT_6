@@ -1,5 +1,5 @@
 import pandas as pd
-import more_itertools
+# import more_itertools
 import joblib
 import os
 import re
@@ -13,45 +13,45 @@ from sklearn.utils import shuffle
 
 
 # Reading the data
-gold = '../data/corpora/polnear-conll/dev-conll-foreval/breitbart_2016-09-12_stealth-over-health-hillary-clin.xml.conll.features.foreval'
-column_names = ['article',
-                'sent_n',
-                'doc_idx',
-                'sent_idx',
-                'offsets',
-                'token',
-                'lemma',
-                'pos',
-                'dep_label',
-                'dep_head',
-                'att']
-
-# Load file with gold labels
-gold_df = pd.read_csv(gold, sep='\t', names=column_names)
-
-# Select gold labels
-gold_labels = gold_df['att']
+# gold = '../data/corpora/polnear-conll/dev-conll-foreval/breitbart_2016-09-12_stealth-over-health-hillary-clin.xml.conll.features.foreval'
+# column_names = ['article',
+#                 'sent_n',
+#                 'doc_idx',
+#                 'sent_idx',
+#                 'offsets',
+#                 'token',
+#                 'lemma',
+#                 'pos',
+#                 'dep_label',
+#                 'dep_head',
+#                 'att']
+#
+# # Load file with gold labels
+# gold_df = pd.read_csv(gold, sep='\t', names=column_names)
+#
+# # Select gold labels
+# gold_labels = gold_df['att']
 
 # Function from Dri for extracting gold label
-def extract_gold_label(cell):
-    '''
-    Strip underscores and info attached to gold label (e.g. -PD-0).
-    :return: gold labels
-    '''
-    match = re.findall(r'[BI]-[A-Z]*', str(cell))
-    if match:
-        for tag in match:
-            if "-NE" not in tag: # exclude nested attributions
-                cell = tag
-    else: # if cell only contains underscores, token does not belong to a source, a cue or a content
-        cell = '_'
-    return cell
-
-# Extracting the gold labels from input file
-gold_labels_cleaned = []
-for labels in gold_labels:
-    new_label = extract_gold_label(labels)
-    gold_labels_cleaned.append(new_label)
+# def extract_gold_label(cell):
+#     '''
+#     Strip underscores and info attached to gold label (e.g. -PD-0).
+#     :return: gold labels
+#     '''
+#     match = re.findall(r'[BI]-[A-Z]*', str(cell))
+#     if match:
+#         for tag in match:
+#             if "-NE" not in tag: # exclude nested attributions
+#                 cell = tag
+#     else: # if cell only contains underscores, token does not belong to a source, a cue or a content
+#         cell = '_'
+#     return cell
+#
+# # Extracting the gold labels from input file
+# gold_labels_cleaned = []
+# for labels in gold_labels:
+#     new_label = extract_gold_label(labels)
+#     gold_labels_cleaned.append(new_label)
 
 # TODO: change this to loop over all documents in dev-conll-foreval folder
 # Extracting the features
@@ -70,11 +70,11 @@ for path in os.listdir(features_folder):
 
 #
 
-def getting_encodings(folder_path):
-    """
-    :param folder_path: path to folder with subdirs for article encodings
-    :return: list with
-    """
+# def getting_encodings(folder_path):
+#     """
+#     :param folder_path: path to folder with subdirs for article encodings
+#     :return: list with
+#     """
 # all_articles = []
 # for path in os.listdir(article_folder):
 #     full_path = os.path.join(article_folder, path)
@@ -83,15 +83,15 @@ def getting_encodings(folder_path):
 
 
 # Opening files in file_list
-opened_files = []
-for files in file_list:
-    file = joblib.load(files)
-    opened_files.append(file)
-
-# Creating sliding window for 2 sentences, output == list with tuples
-sentence_combinations = list(more_itertools.windowed(opened_files,n=2, step=1))
-
-print(sentence_combinations)
+# opened_files = []
+# for files in file_list:
+#     file = joblib.load(files)
+#     opened_files.append(file)
+#
+# # Creating sliding window for 2 sentences, output == list with tuples
+# sentence_combinations = list(more_itertools.windowed(opened_files,n=2, step=1))
+#
+# print(sentence_combinations)
 
 # def opening_sent_combinations(sentence_combinations):
 #     """
@@ -103,9 +103,9 @@ print(sentence_combinations)
 # # TODO: make pairs of filepaths instead of opened files
 
 # Design network
-# TODO: classifier settings instead of regression model DONE, TAKEN FROM https://machinelearningmastery.com/sequence-classification-lstm-recurrent-neural-networks-python-keras/
+# TAKEN FROM https://machinelearningmastery.com/sequence-classification-lstm-recurrent-neural-networks-python-keras/
 model = Sequential()
-model.add(LSTM(32, return_sequences=True))
+model.add(LSTM(100, return_sequences=True))
 model.add(Dropout(0.2))
 model.add(Dense(1, activation='sigmoid'))
 model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -180,7 +180,7 @@ def extracting_gold(path):
 
 # Extracting sentence features and gold labels
 sent_feats = extracting_features(sentence_combinations)
-gold_vectorized = extracting_gold("../output_old/output_old/breitbart_2016-09-04_obama-i-m-optimistic-americans-w.xml.conll.features.foreval")
+gold_vectorized = extracting_gold("../instances/instances/breitbart_2016-09-04_obama-i-m-optimistic-americans-w.xml.conll.features.foreval")
 
 
 def train_model(train_features, train_labels, model, epochs=20, verbose=2):
