@@ -89,16 +89,16 @@ for files in file_list:
     opened_files.append(file)
 
 # Creating sliding window for 2 sentences, output == list with tuples
-sentence_combinations = list(more_itertools.windowed(file_list,n=2, step=1))
+sentence_combinations = list(more_itertools.windowed(opened_files,n=2, step=1))
 
 print(sentence_combinations)
 
-def opening_sent_combinations(sentence_combinations):
-    """
-    :param sentence_combinations: list with pairs of paths to files with sentence representations
-    :return:
-    """
-    for combinations in sentence_combinations:
+# def opening_sent_combinations(sentence_combinations):
+#     """
+#     :param sentence_combinations: list with pairs of paths to files with sentence representations
+#     :return:
+#     """
+#     for combinations in sentence_combinations:
 #
 # # TODO: make pairs of filepaths instead of opened files
 
@@ -118,37 +118,34 @@ def extracting_features(sentence_combinations):
     """
 
     token_representations = []
-    print(sentence_combinations)
-    for tups in sentence_combinations:
-        for sents in tups:
+    #
+    for sentences in sentence_combinations:
 
-            # Indexing sentences
-            sent1 = sents[0]
-            sent2 = sents[1]
+        current_tup = sentences
 
-            # Indexing CLS tokens
-            CLS1 = sent1[0]
-            CLS2 = sent2[0]
+        # Indexing sentences
+        sent1 = current_tup[0]
+        sent2 = current_tup[1]
 
-            # Indexing tokens
-            tokens1 = sent1[1:]
-            tokens2 = sent2[1:]
+        # Indexing CLS tokens
+        CLS1 = sent1[0]
+        CLS2 = sent2[0]
 
-            for tokens in tokens1:
-                token_rep = np.concatenate(((CLS1), (CLS2), (tokens)), axis=None)
-                token_representations.append(token_rep)
+        # Indexing tokens
+        tokens1 = sent1[1:]
+        print('TOKENS 1', len(tokens1))
+        tokens2 = sent2[1:]
+        print('TOKENS 2', len(tokens2))
 
+        for tokens in tokens1:
+            token_rep = np.concatenate(((CLS1), (CLS2), (tokens)), axis=None)
+            token_representations.append(token_rep)
 
-            for tokens in tokens2:
-                token_rep = np.concatenate(((CLS1), (CLS2), (tokens)), axis=None)
-                token_representations.append(token_rep)
+        for tokens in tokens2:
+            token_rep = np.concatenate(((CLS1), (CLS2), (tokens)), axis=None)
+            token_representations.append(token_rep)
 
-    print(len(token_representations))
-
-    # # Vectorizing the gold labels
-    # vec = CountVectorizer()
-    # gold_vectorized = vec.fit_transform(gold_labels)
-
+    print('LEN FEATS', len(token_representations))
     return token_representations
 
 def extracting_gold(path):
@@ -170,10 +167,11 @@ def extracting_gold(path):
         df = pd.read_csv(files, delimiter='\t')
 
         gold = df['10'] #column with gold labels in conll files
-
+        print('GOLD PER FILE', len(gold))
         for labels in gold:
-            gold_labels.append(labels)
 
+            gold_labels.append(labels)
+    print('LEN GOLD LABELS', len(gold_labels))
     # Vectorizing the gold labels
     vec = CountVectorizer()
     gold_vectorized = vec.fit_transform(gold_labels)
