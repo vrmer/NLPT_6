@@ -1,11 +1,10 @@
 import glob
 import os
 import numpy as np
-# import pandas as pd
 import joblib
-# from keras import Sequential
-# from keras.layers import LSTM, Dropout, Dense
-from sklearn.linear_model import SGDClassifier
+from keras import Sequential
+from keras.layers import LSTM, Dropout, Dense
+from keras.preprocessing import sequence
 from sklearn.utils import shuffle
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report
@@ -54,10 +53,13 @@ def create_classifier_features(instance_encodings):
     cls1, tokens1 = sentence1[0], sentence1[1:]
     cls2, tokens2 = sentence2[0], sentence2[1:]
 
-    for token in (tokens1 + tokens2):
+    tokens = tokens1 + tokens2
+
+    for token in tokens:
         token_rep = np.concatenate(
             (cls1, cls2, token), axis=None
         )
+        token_rep = token_rep.reshape((1, token_rep.shape[0]))
         classifier_features.append(token_rep)
 
     return classifier_features
@@ -75,22 +77,25 @@ dev_paths = [
     if 'dev-conll-foreval' in path
 ]
 
-test_paths = [
-    path for path in instance_paths
-    if 'test-conll-foreval' in path
-]
-
 classes = ['SOURCE', 'CUE', 'CONTENT', 'O']
 label_encoder = LabelEncoder()
 label_encoder.fit(classes)
 all_label_encoder_classes = label_encoder.transform(label_encoder.classes_)  # total classes
-sgd = SGDClassifier(warm_start=True)
+
+# LSTM for classification
+model = Sequential()
+model.add(LSTM(100, return_sequences=True))
+model.add(Dropout(0.2))
+model.add(Dense(1, activation='sigmoid'))
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 
-def train_svm(input_filepath, corpus='train-conll-foreval', training_phase=0):
+def train_lstm(input_filepath, corpus='train-conll-foreval', epochs=10):
     """
     This function loads an article, and trains on the basis of it.
     """
+    history = []
+
     encodings, labels = extract_instance_encodings_labels(input_filepath, corpus=corpus)
 
     train_features = create_classifier_features(encodings)
@@ -100,12 +105,16 @@ def train_svm(input_filepath, corpus='train-conll-foreval', training_phase=0):
 
     train_features, train_labels = shuffle(train_features, train_labels)
 
-    if training_phase == 0:
-        sgd.fit(train_features, train_labels)
-    elif training_phase == 1:
-        sgd.partial_fit(train_features, train_labels, classes=all_label_encoder_classes)
-    else:
-        sgd.partial_fit(train_features, train_labels)
+    for i in range(epochs):
+
+        # for train_feature, train_label in zip(train_features, train_labels):
+        history = model.train_on_batch(
+            np.asarray(train_features),
+            train_labels,
+            reset_metrics=False
+        )
+
+    return history
 
 
 def predict_on_data(input_filepath, corpus='dev-conll-foreval'):
@@ -121,35 +130,35 @@ def predict_on_data(input_filepath, corpus='dev-conll-foreval'):
 
     dev_features, dev_labels = shuffle(dev_features, dev_labels)
 
-    predictions = sgd.predict(dev_features)
+    predictions = model.predict(np.asarray(dev_features))
 
     return predictions, dev_labels
 
 
 if __name__ == '__main__':
-    #
-    # with tqdm(total=len(train_paths), desc='Training...') as pbar:
-    #
-    #     for idx, path in enumerate(train_paths):
-    #
-    #         # if train_paths[idx+1].endswith('0.pickle'):
-    #         #     print('Next one is 0')
-    #
-    #         train_svm(path, training_phase=idx)
-    #
-    #         pbar.update(1)
 
-    # joblib.dump(sgd, '../../data/models/sgd_classifier_two_sentence_instances.sav')
-    sgd = joblib.load('../../data/models/sgd_classifier_two_sentence_instances.sav')
+    with tqdm(total=len(train_paths), desc='Training...') as pbar:
+
+        for idx, path in enumerate(train_paths):
+
+            # if train_paths[idx+1].endswith('0.pickle'):
+            #     print('Next one is 0')
+
+            train_lstm(path)
+
+            pbar.update(1)
+
+    joblib.dump(model, '../../data/models/lstm_classifier_two_sentence_instances.sav')
+    # sgd = joblib.load('../../data/models/lstm_classifier_two_sentence_instances.sav')
 
     predictions = []
     true_labels = []
 
-    with tqdm(total=len(test_paths), desc='Evaluation on testset... ') as pbar:
+    with tqdm(total=len(dev_paths), desc='Evaluation on devset... ') as pbar:
 
-        for idx, path in enumerate(test_paths):
+        for idx, path in enumerate(dev_paths):
 
-            preds, labels = predict_on_data(path, corpus='test-conll-foreval')
+            preds, labels = predict_on_data(path)
 
             for pred, lab in zip(preds, labels):
                 predictions.append(pred)
