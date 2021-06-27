@@ -130,6 +130,8 @@ def predict_on_data(input_filepath, corpus='dev-conll-foreval'):
     """
     This function carries out predictions.
     """
+    converted_predictions = []
+
     encodings, labels = extract_instance_encodings_labels(input_filepath, corpus=corpus)
 
     dev_features = create_classifier_features(encodings)
@@ -141,7 +143,11 @@ def predict_on_data(input_filepath, corpus='dev-conll-foreval'):
 
     predictions = model.predict(np.asarray(dev_features))
 
-    return predictions, dev_labels
+    for pred in predictions:
+        label = np.argmax(pred)
+        converted_predictions.append(label)
+
+    return converted_predictions, dev_labels
 
 
 if __name__ == '__main__':
@@ -171,7 +177,7 @@ if __name__ == '__main__':
     with open('../../data/models/lstm_classifier_two_sentence_instances.json', 'w') as outfile:
         outfile.write(model_json)
 
-    model = keras.models.load_model('../../data/models/lstm_classifier_two_sentence_instances.sav')
+    # model = keras.models.load_model('../../data/models/lstm_classifier_two_sentence_instances.sav')
 
     predictions = []
     true_labels = []
