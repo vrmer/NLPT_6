@@ -9,6 +9,7 @@ from keras.layers import LSTM, Dropout, Dense
 from sklearn.utils import shuffle
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report
+from tensorflow import keras
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
@@ -88,8 +89,8 @@ all_label_encoder_classes = label_encoder.transform(label_encoder.classes_)  # t
 model = Sequential()
 model.add(LSTM(100, return_sequences=True))
 model.add(Dropout(0.2))
-model.add(Dense(1, activation='sigmoid'))
-model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.add(Dense(4, activation='sigmoid'))  # four classes, four outputs
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 
 def train_lstm(input_filepath, corpus='train-conll-foreval', epochs=10):
@@ -154,12 +155,17 @@ if __name__ == '__main__':
 
             pbar.update(1)
 
-    try:
-        model.save('../../data/models/lstm_classifier_two_sentence_instances.sav')
-    except:
-        print('Saving model failed.')
+    # try:
+    #     model.save('../../data/models/lstm_classifier_two_sentence_instances.sav')
+    # except:
+    #     print('Saving model failed.')
 
-    # model = joblib.load('../../data/models/lstm_classifier_two_sentence_instances.sav')
+    model_json = model.to_json()
+
+    with open('../../data/models/lstm_classifier_two_sentence_instances.sav', 'w') as outfile:
+        outfile.write(model_json)
+
+    model = keras.models.load_model('../../data/models/lstm_classifier_two_sentence_instances.sav')
 
     predictions = []
     true_labels = []
@@ -171,7 +177,7 @@ if __name__ == '__main__':
             preds, labels = predict_on_data(path)
 
             for pred, lab in zip(preds, labels):
-                predictions.append(pred)
+                predictions.append(pred)  # TODO: predictions have too many dimensions, we need to reshape
                 true_labels.append(lab)
 
             pbar.update(1)
