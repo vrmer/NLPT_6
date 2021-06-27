@@ -98,15 +98,21 @@ def train_lstm(input_filepath, corpus='train-conll-foreval', epochs=10):
     This function loads an article, and trains on the basis of it.
     """
     history = []
+    arrayed_targets = []
 
     encodings, labels = extract_instance_encodings_labels(input_filepath, corpus=corpus)
 
     train_features = create_classifier_features(encodings)
     train_labels = label_encoder.transform(labels)
 
-    train_labels = np.array(train_labels).ravel()
+    for lab in train_labels:
+        label_array = np.zeros(4)
+        label_array[lab] = 1
+        arrayed_targets.append([label_array])
+    # print(train_labels)
+    # train_labels = np.array(train_labels).ravel()
 
-    train_features, train_labels = shuffle(train_features, train_labels)
+    train_features, train_labels = shuffle(train_features, np.asarray(arrayed_targets))
 
     for i in range(epochs):
 
@@ -162,7 +168,7 @@ if __name__ == '__main__':
 
     model_json = model.to_json()
 
-    with open('../../data/models/lstm_classifier_two_sentence_instances.sav', 'w') as outfile:
+    with open('../../data/models/lstm_classifier_two_sentence_instances.json', 'w') as outfile:
         outfile.write(model_json)
 
     model = keras.models.load_model('../../data/models/lstm_classifier_two_sentence_instances.sav')
