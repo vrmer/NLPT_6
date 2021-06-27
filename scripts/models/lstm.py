@@ -1,14 +1,16 @@
 import glob
+# import pickle
 import os
 import numpy as np
 import joblib
 from keras import Sequential
 from keras.layers import LSTM, Dropout, Dense
-from keras.preprocessing import sequence
+# from keras.preprocessing import sequence
 from sklearn.utils import shuffle
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 
 def extract_instance_encodings_labels(input_filepath, corpus='train-conll-foreval'):
@@ -139,17 +141,25 @@ if __name__ == '__main__':
 
     with tqdm(total=len(train_paths), desc='Training...') as pbar:
 
+        training_losses = []
+
         for idx, path in enumerate(train_paths):
 
             # if train_paths[idx+1].endswith('0.pickle'):
             #     print('Next one is 0')
 
-            train_lstm(path)
+            history = train_lstm(path)
+
+            training_losses.append(history)
 
             pbar.update(1)
 
-    joblib.dump(model, '../../data/models/lstm_classifier_two_sentence_instances.sav')
-    # sgd = joblib.load('../../data/models/lstm_classifier_two_sentence_instances.sav')
+    try:
+        model.save('../../data/models/lstm_classifier_two_sentence_instances.sav')
+    except:
+        print('Saving model failed.')
+
+    # model = joblib.load('../../data/models/lstm_classifier_two_sentence_instances.sav')
 
     predictions = []
     true_labels = []
