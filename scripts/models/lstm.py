@@ -22,7 +22,9 @@ def extract_instance_encodings_labels(input_filepath, corpus='train-conll-foreva
     """
     instance_encodings = []
 
-    encoding_path = f'../../data/encodings/polnear-conll/{corpus}'
+    encoding_path =f'C:/Users/Myrthe/OneDrive/Documenten/VU/NLPT/NLPT_oud/data/encodings/polnear-conll/{corpus}'
+
+       # f'../../../NLPT_oud/data/encodings/polnear-conll/{corpus}'
 
     filename = os.path.basename(
         os.path.dirname(
@@ -68,7 +70,7 @@ def create_classifier_features(instance_encodings):
     return classifier_features
 
 
-instance_paths = glob.glob('../../data/instances/**/**/**')
+instance_paths = glob.glob(f'C:/Users/Myrthe/OneDrive/Documenten/VU/NLPT/NLPT_oud/data/instances/**/**/**')
 
 train_paths = [
     path for path in instance_paths
@@ -77,7 +79,7 @@ train_paths = [
 
 dev_paths = [
     path for path in instance_paths
-    if 'dev-conll-foreval' in path
+    if 'test-conll-foreval' in path
 ]
 
 classes = ['SOURCE', 'CUE', 'CONTENT', 'O']
@@ -93,7 +95,7 @@ model.add(Dense(4, activation='sigmoid'))  # four classes, four outputs
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 
-def train_lstm(input_filepath, corpus='train-conll-foreval', epochs=10):
+def train_lstm(input_filepath, corpus='train-conll-foreval', epochs=4):
     """
     This function loads an article, and trains on the basis of it.
     """
@@ -126,7 +128,7 @@ def train_lstm(input_filepath, corpus='train-conll-foreval', epochs=10):
     return history
 
 
-def predict_on_data(input_filepath, corpus='dev-conll-foreval'):
+def predict_on_data(input_filepath, corpus='test-conll-foreval'):
     """
     This function carries out predictions.
     """
