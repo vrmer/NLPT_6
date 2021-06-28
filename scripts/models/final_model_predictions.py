@@ -11,13 +11,13 @@ from sklearn.utils import shuffle
 from sklearn.metrics import classification_report
 
 
-
 with open('../../data/models/lstm_classifier_two_sentence_instances.json', 'r') as infile:
     loaded_model = infile.read()
 
 model = tf.keras.models.model_from_json(loaded_model)
 
-def extract_instance_encodings_labels(input_filepath, corpus='train-conll-foreval'):
+
+def extract_instance_encodings_labels(input_filepath, corpus='train-conll-foreval', return_instance=False):
     """
     This function returns the correct sentence and token encodings
     for each training instance. The input should be the path to the
@@ -25,9 +25,8 @@ def extract_instance_encodings_labels(input_filepath, corpus='train-conll-foreva
     """
     instance_encodings = []
 
-    encoding_path =f'C:/Users/Myrthe/OneDrive/Documenten/VU/NLPT/NLPT_oud/data/encodings/polnear-conll/{corpus}'
-
-       # f'../../../NLPT_oud/data/encodings/polnear-conll/{corpus}'
+    # encoding_path =f'C:/Users/Myrthe/OneDrive/Documenten/VU/NLPT/NLPT_oud/data/encodings/polnear-conll/{corpus}'
+    encoding_path = f'../../data/encodings/polnear-conll/{corpus}'
 
     filename = os.path.basename(
         os.path.dirname(
@@ -44,7 +43,11 @@ def extract_instance_encodings_labels(input_filepath, corpus='train-conll-foreva
         encoding = joblib.load(e_path)
         instance_encodings.append(encoding)
 
-    return instance_encodings, labels
+    if return_instance is True:
+        return instance_encodings, labels, instance
+    else:
+        return instance_encodings, labels
+
 
 def create_classifier_features(instance_encodings):
     """
@@ -72,7 +75,8 @@ def create_classifier_features(instance_encodings):
     return classifier_features
 
 
-instance_paths = glob.glob(f'C:/Users/Myrthe/OneDrive/Documenten/VU/NLPT/NLPT_oud/data/instances/**/**/**')
+# instance_paths = glob.glob(f'C:/Users/Myrthe/OneDrive/Documenten/VU/NLPT/NLPT_oud/data/instances/**/**/**')
+instance_paths = glob.glob('../../data/instances/**/**/**')
 
 test_paths = [
     path for path in instance_paths
@@ -84,13 +88,18 @@ label_encoder = LabelEncoder()
 label_encoder.fit(classes)
 all_label_encoder_classes = label_encoder.transform(label_encoder.classes_)  # total classes
 
-def predict_on_data(input_filepath, model, corpus='test-conll-foreval'):
+
+def predict_on_data(input_filepath, model, corpus='test-conll-foreval', output_for_instance=None):
     """
     This function carries out predictions.
     """
     converted_predictions = []
 
-    encodings, labels = extract_instance_encodings_labels(input_filepath, corpus=corpus)
+    if output_for_instance is None:
+        encodings, labels = extract_instance_encodings_labels(input_filepath, corpus=corpus)
+    else:
+        encodings, labels, instance = extract_instance_encodings_labels(
+            input_filepath, corpus=corpus, return_instance=True)
 
     test_features = create_classifier_features(encodings)
     test_labels = label_encoder.transform(labels)
@@ -105,6 +114,30 @@ def predict_on_data(input_filepath, model, corpus='test-conll-foreval'):
         label = np.argmax(pred)
         converted_predictions.append(label)
 
+    converted_predictions = label_encoder.inverse_transform(converted_predictions)
+
+    if output_for_instance is not None:
+
+        article_name = os.path.basename(
+            os.path.dirname(
+                input_filepath
+            )
+        )
+
+        filename = os.path.basename(input_filepath)
+
+        directory_to_create = f'../../data/final_output/{corpus}/{article_name}'
+
+        try:
+            os.mkdir(directory_to_create)
+        except FileExistsError:
+            pass
+
+        output_path = directory_to_create + '/' + filename
+
+        instance[12] = converted_predictions
+        joblib.dump(instance, output_path)
+
     return converted_predictions, test_labels
 
 
@@ -117,16 +150,16 @@ if __name__ == '__main__':
 
         for idx, path in enumerate(test_paths):
 
-            preds, labels = predict_on_data(path, model)
+            preds, labels = predict_on_data(path, model, output_for_instance=True)
 
             for pred, lab in zip(preds, labels):
-                predictions.append(pred)  # TODO: predictions have too many dimensions, we need to reshape
+                predictions.append(pred)
                 true_labels.append(lab)
 
             pbar.update(1)
 
     true_labels = label_encoder.inverse_transform(true_labels)
-    predictions = label_encoder.inverse_transform(predictions)
+    # predictions = label_encoder.inverse_transform(predictions)
 
     report = classification_report(true_labels, predictions)
     print(report)
