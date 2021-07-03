@@ -23,7 +23,7 @@ This folder contains the following subfolders with the code files to run the pro
 * `final_model_predictions.py`: code that loads the trained and saved model and makes predictions on the test data.
 
 #### processing
-* `preprocessing.py`: code to clean and prepare the data set for the model input.
+* `preprocessing.py`: code to clean and prepare the data set for the model input.* `training_instances.py`: code to generate files per sentence as training instances for the lstm model.
 * `postprocessing.py`: code to add the BIO-scheme after model predictions.
 * `results_to_conll.py`: code to convert the output files with results to conll files.
 
