@@ -212,7 +212,7 @@ def generate_attribution_column(df,pred):
 # generate full data frame (all articles from a corpus concatenated)
 corpus = "polnear"
 dataset = 'dev'
-files = generate_filepaths(f'../data/{corpus}-conll', corpus, dataset)
+files = generate_filepaths(f'../../data/{corpus}-conll', corpus, dataset)
 for file in files:
     # df["gold"] = df["att"].apply(extract_gold_label) # strip underscores and unwanted labels from attribution column
     column_names = ['article',
@@ -241,7 +241,7 @@ for file in files:
     # gold = [[token[-1] for token in sentence] for sentence in getter.sentences]
 
     # read in list of reporting verbs from literature
-    cue_gzt = pd.read_csv('../data/cue_list.csv')["cue"].tolist()
+    cue_gzt = pd.read_csv('../../data/cue_list.csv')["cue"].tolist()
 
     # generate syntactic baseline
     pred = generate_baseline(sentences, cue_gzt)
@@ -261,7 +261,7 @@ for file in files:
     rows_out = []
     for row in df_rows:
         rows_out.append(row)
-    with open(f'/Users/adrielli/PycharmProjects/NLPT_6/data/output/baseline/{dataset}_{corpus}/{os.path.basename(file)}.system', 'w') as tsvfile:
+    with open(f'../../data/output/baseline/{dataset}_{corpus}/{os.path.basename(file)}.system', 'w') as tsvfile:
         for row in rows_out:
             if row[3] == 1 and row != rows_out[0]:
                 tsvfile.write('\n') # add blank lines between sentences

@@ -52,17 +52,17 @@ def create_classifier_features(instance_encodings):
     classifier_features = []
 
     sentence1 = instance_encodings[0]
-    sentence2 = instance_encodings[1]
+    #sentence2 = instance_encodings[1]
 
     # CLS tokens, tokens
     cls1, tokens1 = sentence1[0], sentence1[1:]
-    cls2, tokens2 = sentence2[0], sentence2[1:]
+    #cls2, tokens2 = sentence2[0], sentence2[1:]
 
-    tokens = tokens1 + tokens2
+    tokens = tokens1
 
     for token in tokens:
         token_rep = np.concatenate(
-            (cls1, cls2, token), axis=None
+            (cls1, token), axis=None
         )
         token_rep = token_rep.reshape((1, token_rep.shape[0]))
         classifier_features.append(token_rep)
@@ -70,7 +70,7 @@ def create_classifier_features(instance_encodings):
     return classifier_features
 
 
-instance_paths = glob.glob(f'C:/Users/Myrthe/OneDrive/Documenten/VU/NLPT/NLPT_oud/data/instances/**/**/**')
+instance_paths = glob.glob(f'C:/Users/Myrthe/OneDrive/Documenten/VU/NLPT/NLPT_6/data/instances/**/**/**')
 
 train_paths = [
     path for path in instance_paths
@@ -95,7 +95,7 @@ model.add(Dense(4, activation='sigmoid'))  # four classes, four outputs
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 
-def train_lstm(input_filepath, corpus='train-conll-foreval', epochs=4):
+def train_lstm(input_filepath, corpus='train-conll-foreval', epochs=10):
     """
     This function loads an article, and trains on the basis of it.
     """
@@ -176,7 +176,7 @@ if __name__ == '__main__':
 
     model_json = model.to_json()
 
-    with open('../../data/models/lstm_classifier_two_sentence_instances.json', 'w') as outfile:
+    with open('../../data/models/lstm_classifier_one_sentence_instances_10epoch.json', 'w') as outfile:
         outfile.write(model_json)
 
     # model = keras.models.load_model('../../data/models/lstm_classifier_two_sentence_instances.sav')

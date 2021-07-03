@@ -4,8 +4,8 @@ from tqdm import tqdm
 from encoding.bert import process_document as process_document
 
 
-parc30 = glob.glob('../data/corpora/parc30-conll/**/**')
-polnear = glob.glob('../data/corpora/polnear-conll/**/**')
+parc30 = glob.glob('../../data/corpora/parc30-conll/**/**')
+polnear = glob.glob('../../data/corpora/polnear-conll/**/**')
 
 all_paths = parc30 + polnear
 
