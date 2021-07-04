@@ -1,0 +1,9 @@
+argparse==1.4.0
+pandas==1.2.3
+sklearn==0.24.1
+transformers==4.4.2
+torch==1.8.0
+joblib==1.0.1
+tqdm==4.61.1
+keras==2.4.3
+networkx==2.5.1

@@ -1,17 +1,13 @@
 import glob
-# import pickle
 import os
 import numpy as np
 import joblib
 from keras import Sequential
 from keras.layers import LSTM, Dropout, Dense
-# from keras.preprocessing import sequence
 from sklearn.utils import shuffle
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report
-from tensorflow import keras
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 
 
 def extract_instance_encodings_labels(input_filepath, corpus='train-conll-foreval'):
@@ -22,9 +18,8 @@ def extract_instance_encodings_labels(input_filepath, corpus='train-conll-foreva
     """
     instance_encodings = []
 
-    encoding_path =f'C:/Users/Myrthe/OneDrive/Documenten/VU/NLPT/NLPT_oud/data/encodings/polnear-conll/{corpus}'
+    encoding_path =f'../../data/encodings/polnear-conll/{corpus}'
 
-       # f'../../../NLPT_oud/data/encodings/polnear-conll/{corpus}'
 
     filename = os.path.basename(
         os.path.dirname(
@@ -70,7 +65,7 @@ def create_classifier_features(instance_encodings):
     return classifier_features
 
 
-instance_paths = glob.glob(f'C:/Users/Myrthe/OneDrive/Documenten/VU/NLPT/NLPT_6/data/instances/**/**/**')
+instance_paths = glob.glob(f'../../data/instances/**/**/**')
 
 train_paths = [
     path for path in instance_paths
@@ -169,17 +164,12 @@ if __name__ == '__main__':
 
             pbar.update(1)
 
-    # try:
-    #     model.save('../../data/models/lstm_classifier_two_sentence_instances.sav')
-    # except:
-    #     print('Saving model failed.')
-
+    # Saving the trained model to a json file
     model_json = model.to_json()
 
     with open('../../data/models/lstm_classifier_one_sentence_instances_10epoch.json', 'w') as outfile:
         outfile.write(model_json)
 
-    # model = keras.models.load_model('../../data/models/lstm_classifier_two_sentence_instances.sav')
 
     predictions = []
     true_labels = []
@@ -191,15 +181,15 @@ if __name__ == '__main__':
             preds, labels = predict_on_data(path)
 
             for pred, lab in zip(preds, labels):
-                predictions.append(pred)  # TODO: predictions have too many dimensions, we need to reshape
+                predictions.append(pred)
                 true_labels.append(lab)
 
             pbar.update(1)
 
     true_labels = label_encoder.inverse_transform(true_labels)
     predictions = label_encoder.inverse_transform(predictions)
-    # print(true_labels)
 
+     # Generating a classification report
     report = classification_report(true_labels, predictions)
 
     print(report)
