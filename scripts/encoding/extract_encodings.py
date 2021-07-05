@@ -3,16 +3,13 @@ import glob
 from tqdm import tqdm
 from encoding.bert import process_document as process_document
 
-
+# Defining paths to data
 parc30 = glob.glob('../../data/corpora/parc30-conll/**/**')
 polnear = glob.glob('../../data/corpora/polnear-conll/**/**')
 
 all_paths = parc30 + polnear
 
-# path = r'D:\VU Amsterdam\NLPT_6\data\corpora\parc30-conll\dev-conll-foreval\wsj_2407.xml.conll.features.foreval'
-
-# process_document(path, 'parc30-conll')
-
+# Running the code from BERT script for parc and polnear corpus
 with tqdm(total=len(all_paths), desc='Encoding articles... ') as pbar:
 
     for path in parc30:

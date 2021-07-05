@@ -15,6 +15,8 @@ warnings.filterwarnings('ignore')
 def prepare_segment_numbers(tokens, max_len):
     """
     Append cls, sep and pad tokens.
+    :tokens: the tokens in the article for which to generate the representations
+    :max len: the maximum length for padding
     """
     prepared_segment_numbers = np.concatenate((['[CLS]'], tokens, ['[SEP]']))
     padded_prepared_segment_numbers = np.concatenate(
@@ -27,6 +29,7 @@ def extract_sentences_from_df(path):
     """
     Get string and list representation of the sentences
     in an input document.
+    :path: path to document
     """
     string_sentences = []
     list_sentences = []
@@ -50,7 +53,7 @@ def initialize_bert():
     Initialize DistilBERT and its tokenizer,
     returns the tokenizer and the model.
     """
-
+    # Initializing model and tokenizer
     model_class, tokenizer_class, pretrained_weights = (
         tf.DistilBertModel,
         tf.DistilBertTokenizer,
@@ -69,6 +72,7 @@ def tokenize_sentences(string_sentences, tokenizer):
     """
     tokenized_sentences = []
 
+    # Tokenizing the data
     for string_sentence in string_sentences:
         tokens = tokenizer.encode(string_sentence, add_special_tokens=True)
         tokenized_sentences.append(tokens)
@@ -88,11 +92,13 @@ def padding_time(tokenized_sentences):
         if len(sent) > max_len:
             max_len = len(sent)
 
+    # Padding sentences to make the input of same length for every sequence
     padded_sentences = np.array(
         [sent + [0] * (max_len - len(sent))
          for sent in tokenized_sentences]
     )
 
+    # Setting the attention mask
     attention_mask = np.where(padded_sentences != 0, 1, 0)
 
     return padded_sentences, attention_mask, max_len
@@ -125,6 +131,7 @@ def create_alignment_list(segment_numbers, list_sentences, max_len):
     """
     alignment = []
 
+    # Zipping through list and segment N to ensure alignment
     for segment_number, list_sentence in zip(segment_numbers, list_sentences):
 
         sentence_alignment = []
@@ -132,6 +139,7 @@ def create_alignment_list(segment_numbers, list_sentences, max_len):
         for number, word in zip(segment_number, list_sentence):
             sentence_alignment.append(word)
 
+            # Adding PART tokens for follwing multiword tokens in input
             if number != 1:
                 sentence_alignment.extend(['[PART]'] * (number - 1))
 
@@ -166,11 +174,10 @@ def decrease_dimensionality(input_encoding, pca, first_index=True):
     """
     prepared_encoding = input_encoding.numpy().reshape(32, 24)
 
+    # Decreasing dimensionality from 768 BERT tokens to 24, because of memory limitations
     if first_index is True:
-        # scaled_encoding = scaler.fit_transform(prepared_encoding)
         pca_encoding = pca.fit_transform(prepared_encoding)
     else:
-        # scaled_encoding = scaler.transform(prepared_encoding)
         pca_encoding = pca.transform(prepared_encoding)
 
     return pca_encoding
@@ -185,6 +192,7 @@ def extract_token_level_encodings(encoded_sentences, alignment, corpus, path, pc
         os.path.dirname(path)
     )
 
+    # Creating output folders
     os.mkdir(f'../data/encodings/{corpus}/{dir_name}/{filename}')
 
     for idx, (encoded_sentence, sentence_alignment) in enumerate(zip(encoded_sentences, alignment)):

@@ -9,13 +9,13 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import shuffle
 from sklearn.metrics import classification_report
-from sklearn.metrics import confusion_matrix
 import pandas as pd
 
-
+# Opening trained and saved model from LSTM
 with open('../../data/models/lstm_classifier_one_sentence_instances.json', 'r') as infile:
     loaded_model = infile.read()
 
+# Loading model
 model = tf.keras.models.model_from_json(loaded_model)
 
 
@@ -27,8 +27,8 @@ def extract_instance_encodings_labels(input_filepath, corpus='train-conll-foreva
     """
     instance_encodings = []
 
-    encoding_path =f'C:/Users/Myrthe/OneDrive/Documenten/VU/NLPT/NLPT_oud/data/encodings/polnear-conll/{corpus}'
-    #encoding_path = f'../../data/encodings/polnear-conll/{corpus}'
+    # Path to saved encodings
+    encoding_path = f'../../data/encodings/polnear-conll/{corpus}'
 
     filename = os.path.basename(
         os.path.dirname(
@@ -36,8 +36,11 @@ def extract_instance_encodings_labels(input_filepath, corpus='train-conll-foreva
         )
     )
 
+    # Loading instances that match with the encodings
     instance = joblib.load(input_filepath)
     sentence_indices = instance[11].unique().tolist()
+
+    # Saving instance labels to list
     labels = instance[10].tolist()
 
     for sentence_index in sentence_indices:
@@ -58,15 +61,14 @@ def create_classifier_features(instance_encodings):
     """
     classifier_features = []
 
+    # Indicing sentence
     sentence1 = instance_encodings[0]
-    #sentence2 = instance_encodings[1]
 
     # CLS tokens, tokens
     cls1, tokens1 = sentence1[0], sentence1[1:]
-    #cls2, tokens2 = sentence2[0], sentence2[1:]
-
     tokens = tokens1
 
+    # Concatenating to one feature
     for token in tokens:
         token_rep = np.concatenate(
             (cls1, token), axis=None
@@ -76,7 +78,7 @@ def create_classifier_features(instance_encodings):
 
     return classifier_features
 
-#instance_paths = glob.glob(f'C:/Users/Myrthe/OneDrive/Documenten/VU/NLPT/NLPT_6/data/instances/**/**/**')
+# Path to once sentence instances
 instance_paths = glob.glob('../../data/instances/**/**/**')
 
 test_paths = [
@@ -84,9 +86,13 @@ test_paths = [
     if 'test-conll-foreval' in path
 ]
 
+# Labels for the classifier
 classes = ['SOURCE', 'CUE', 'CONTENT', 'O']
+
+# Encoding labels
 label_encoder = LabelEncoder()
 label_encoder.fit(classes)
+
 all_label_encoder_classes = label_encoder.transform(label_encoder.classes_)  # total classes
 
 
@@ -96,19 +102,21 @@ def predict_on_data(input_filepath, model, corpus='test-conll-foreval', output_f
     """
     converted_predictions = []
 
+    # Matching instances and encodings
     if output_for_instance is None:
         encodings, labels = extract_instance_encodings_labels(input_filepath, corpus=corpus)
     else:
         encodings, labels, instance = extract_instance_encodings_labels(
             input_filepath, corpus=corpus, return_instance=True)
 
+    # Generating the gold data
     test_features = create_classifier_features(encodings)
     test_labels = label_encoder.transform(labels)
 
     test_labels = np.array(test_labels).ravel()
-
     test_features, test_labels = shuffle(test_features, test_labels)
 
+    # Running predictions on test data
     predictions = model.predict(np.asarray(test_features))
 
     for pred in predictions:
@@ -127,6 +135,7 @@ def predict_on_data(input_filepath, model, corpus='test-conll-foreval', output_f
 
         filename = os.path.basename(input_filepath)
 
+        # Creating directory for saving the output predictions
         directory_to_create = f'../../data/final_output/{corpus}/{article_name}'
 
         try:
@@ -160,15 +169,15 @@ if __name__ == '__main__':
             pbar.update(1)
 
     true_labels = label_encoder.inverse_transform(true_labels)
-    # predictions = label_encoder.inverse_transform(predictions)
 
+    # Generating classification report and confusion matrix
     report = classification_report(true_labels, predictions)
 
     data = {'Gold': true_labels, 'Predicted': predictions}
     df = pd.DataFrame(data, columns=['Gold', 'Predicted'])
-
     confusion_matrix = pd.crosstab(df['Gold'], df['Predicted'], rownames=['Gold'], colnames=['Predicted'])
-    print(confusion_matrix)
 
+    # Printing statistics
+    print(confusion_matrix)
     print(report)
 

@@ -18,6 +18,7 @@ def extract_instance_encodings_labels(input_filepath, corpus='train-conll-foreva
     """
     instance_encodings = []
 
+    # Path to saved BERT encodings
     encoding_path =f'../../data/encodings/polnear-conll/{corpus}'
 
 
@@ -27,8 +28,11 @@ def extract_instance_encodings_labels(input_filepath, corpus='train-conll-foreva
         )
     )
 
+    # Loading instances
     instance = joblib.load(input_filepath)
     sentence_indices = instance[11].unique().tolist()
+
+    # Saving labels
     labels = instance[10].tolist()
 
     for sentence_index in sentence_indices:
@@ -46,15 +50,14 @@ def create_classifier_features(instance_encodings):
     """
     classifier_features = []
 
+    # Indexing sentence
     sentence1 = instance_encodings[0]
-    #sentence2 = instance_encodings[1]
 
     # CLS tokens, tokens
     cls1, tokens1 = sentence1[0], sentence1[1:]
-    #cls2, tokens2 = sentence2[0], sentence2[1:]
-
     tokens = tokens1
 
+    # Concatenating in one feature
     for token in tokens:
         token_rep = np.concatenate(
             (cls1, token), axis=None
@@ -64,7 +67,7 @@ def create_classifier_features(instance_encodings):
 
     return classifier_features
 
-
+# Path to instances
 instance_paths = glob.glob(f'../../data/instances/**/**/**')
 
 train_paths = [
@@ -74,7 +77,7 @@ train_paths = [
 
 dev_paths = [
     path for path in instance_paths
-    if 'test-conll-foreval' in path
+    if 'dev-conll-foreval' in path
 ]
 
 classes = ['SOURCE', 'CUE', 'CONTENT', 'O']
@@ -90,15 +93,17 @@ model.add(Dense(4, activation='sigmoid'))  # four classes, four outputs
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 
-def train_lstm(input_filepath, corpus='train-conll-foreval', epochs=10):
+def train_lstm(input_filepath, corpus='train-conll-foreval', epochs=4):
     """
     This function loads an article, and trains on the basis of it.
     """
     history = []
     arrayed_targets = []
 
+    # Extracting encodings and labels
     encodings, labels = extract_instance_encodings_labels(input_filepath, corpus=corpus)
 
+    # Defining the features and labels for training set
     train_features = create_classifier_features(encodings)
     train_labels = label_encoder.transform(labels)
 
@@ -106,14 +111,11 @@ def train_lstm(input_filepath, corpus='train-conll-foreval', epochs=10):
         label_array = np.zeros(4)
         label_array[lab] = 1
         arrayed_targets.append([label_array])
-    # print(train_labels)
-    # train_labels = np.array(train_labels).ravel()
 
     train_features, train_labels = shuffle(train_features, np.asarray(arrayed_targets))
 
     for i in range(epochs):
 
-        # for train_feature, train_label in zip(train_features, train_labels):
         history = model.train_on_batch(
             np.asarray(train_features),
             train_labels,
@@ -123,14 +125,16 @@ def train_lstm(input_filepath, corpus='train-conll-foreval', epochs=10):
     return history
 
 
-def predict_on_data(input_filepath, corpus='test-conll-foreval'):
+def predict_on_data(input_filepath, corpus='dev-conll-foreval'):
     """
     This function carries out predictions.
     """
     converted_predictions = []
 
+    # Extracting encodings and labels for development set
     encodings, labels = extract_instance_encodings_labels(input_filepath, corpus=corpus)
 
+    # Setting features for development set
     dev_features = create_classifier_features(encodings)
     dev_labels = label_encoder.transform(labels)
 
@@ -155,9 +159,6 @@ if __name__ == '__main__':
 
         for idx, path in enumerate(train_paths):
 
-            # if train_paths[idx+1].endswith('0.pickle'):
-            #     print('Next one is 0')
-
             history = train_lstm(path)
 
             training_losses.append(history)
@@ -167,7 +168,7 @@ if __name__ == '__main__':
     # Saving the trained model to a json file
     model_json = model.to_json()
 
-    with open('../../data/models/lstm_classifier_one_sentence_instances_10epoch.json', 'w') as outfile:
+    with open('../../data/models/lstm_classifier_one_sentence_instances.json', 'w') as outfile:
         outfile.write(model_json)
 
 
